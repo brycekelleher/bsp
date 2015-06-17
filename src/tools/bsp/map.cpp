@@ -62,9 +62,9 @@ static void ReadPolygonVertex(FILE *fp, mapface_t *p)
 
 	// fixme: extract the polygon out
 	// fixme: add vertex is useless in this case...
-	p->polygon->vertices[index].x	= x * 32;
-	p->polygon->vertices[index].y	= y * 32;
-	p->polygon->vertices[index].z	= z * 32;
+	p->polygon->vertices[index].x	= x;
+	p->polygon->vertices[index].y	= y;
+	p->polygon->vertices[index].z	= z;
 	p->polygon->numvertices++;
 }
 
