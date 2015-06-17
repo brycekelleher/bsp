@@ -1,0 +1,55 @@
+_______________________________________
+writing trees in post-order
+
+In this case the nodes are indexed by integer. The integer references nodes that are stored in a list
+
+In this case the tree is traversed in post-order, the subtrees are visited first, then the node data is written. To prevent having to backtrack through the file the children must be written first so that the node knows what index they are so it can write these indicies when it writes it's own data.
+
+When either the left or right subtree is written the node returns it's index in the node list for the tree. It is this index that the parent will use to reference the node. The indicies are allocated from a global montonically incrementing count that is initalized at the start of the walk of the tree.
+
+The leaves of the tree will appear in the file first, with the root appearing last. The final node allocated will be the index into the root of the tree. It's difficult to read back as you don't know how many nodes to read. Can write the number of nodes and stop once the number of nodes has been read. If there is a parent node you can look for the last node.
+
+write-node()
+	lchild = write-node(l);
+	rchild = write-node(r)
+	write lchild, rchild, node-data
+
+_______________________________________
+writing trees in preorder
+
+In this case the nodes are traversed in pre-order. The node data is written first, then the subtrees are written in place. This is equivalent to writing each data member sequentially and walking down the tree whenever a node point is encounted. If the subtrees are written last then the data will appear in blocks, otherwise it will be interleaved with the node data. It doesn't matter if the data is interleaved but the order must be same in the read and write functions. It can make it easier to debug if the nodes are arranged in blocks for inspection using xxd or something simi
+
+The root will appear at the start of the file. 
+The current node is written first, then the nodes are written in-place. If all the data is written 
+Need a sentinal value to stop recursion when reading the tree back as no way to know where the null pointers were. Could point back to a null 'z' node? In the case of binary trees this relatively easy, recursion stops when a leaf node is found. It guarenteed that every internal node will have two children. This involves flagging leaf nodes in the binary data stream
+
+write-node()
+	write node-data
+	write-node(l)
+	write-node(r)
+
+read-node()
+	node = alloc-node()
+	read node-data
+	lchild = read-node(l)
+	rchild = read-node(r)
+	return node
+
+_____________________________________
+writing trees that only reference the parent node
+
+This case is suited to writing things like a character bone hierarchy where the traversal will only go up the tree. In this case the nodes can be written in pre-order, visit the node first, then write the subtrees. When each node is visited an index is allocated which again is a montonically incrementing integer and represents the number of nodes written. This index is passed to all child nodes and is written to the file as the reference index back to the parent node.
+
+This also has the advantage when reading back the tree that the index can be used to calculate a pointer to the parent node by taking the index and adding the index to the base of the node pool.
+
+Again there is the problem of how many nodes to read, it's easier to just write the number of nodes and then read them back as if they are in array format
+
+Advantage that in flat linear array order the parent nodes are guarenteed to be before the children. Handy for calculating things like matrix stacks etc (Linear iteration through the array, multiplying by the parent matrix)
+
+write-node()
+	write node-data()
+	write-node(nodeindex, l)
+	write-node(nodeindex, r)
+
+read-node()
+	read node-data
