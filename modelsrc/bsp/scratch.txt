@@ -1,0 +1,18 @@
+To build the solid leaf bsp
+
+To recover connectivity from the bsp.
+
+for each split plane create a polygon that has been clipped by the parent nodes. If the node is
+on the back side of the plane, flip the plane normal (and the distance ?)
+
+Send this plane down the subtree, if it straddles or is coincident with the plane, send it
+down both sides. This is because the connectivity is within the convex subspace created by the
+original split plane. Tag this polygon with the id of the node, even after it splits.
+
+Search all leaf nodes for leaf nodes that contain the polygon with the same id. If it exists
+it's possible that a portal will exist between the sub spaces.
+
+Clip this potential portal by all the planes that form both leaf nodes, ie: clip from leaf node
+to root through parent nodes. If the polygon survices this process, a link exists and the shape of
+the polygon is the shape of the portal through which the subspaces are connected.
+
