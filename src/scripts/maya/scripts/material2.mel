@@ -1,0 +1,140 @@
+source AEfileTemplate.mel;
+
+global string $basepath = "c:/projects/";
+
+// Use this to create brushes
+//polyCube -w 64 -h 64 -d 64 -sx 1 -sy 1 -sz 1 -ax 0 1 0 -cuv 4 -ch 1;
+//move -r -os 0 32 0;
+//polyAutoProjection -lm 0 -pb 0 -ibd 1 -cm 0 -l 3 -sc 1 -o 0 -p 6 -ps 0.2 -ws 1 pCube1.f[0:5];
+
+global proc createCube()
+{
+	polyCube -w 64 -h 64 -d 64 -sx 1 -sy 1 -sz 1 -ax 0 1 0 -cuv 4 -ch 1;
+	move -r -os 0 32 0;
+}
+
+// Use this to setup a projection approximation
+//polyAutoProjection -lm 0 -pb 0 -ibd 1 -cm 0 -l 3 -sc 1 -o 0 -p 6 -ps 0.2 -ws 1 pCube1.f[0:33];
+// Result:polyAutoProj2//
+//;
+//;
+//setAttr "polyAutoProj2.scaleX" 64;
+//setAttr "polyAutoProj2.scaleY" 64;
+//setAttr "polyAutoProj2.scaleZ" 64;
+
+
+global proc createMaterialFromImage(string $filename, string $textureimage)
+{
+	global string $basepath;
+
+	// Create the shading nodes
+	$lambert = `renderCreateBarCB -asShader "surfaceShader" lambert`;
+	$file = `shadingNode -asTexture file`;
+	$placetexture = `shadingNode -asUtility place2dTexture`;
+
+	connectAttr -f ($placetexture + ".coverage") ($file + ".coverage");
+	connectAttr -f ($placetexture + ".translateFrame") ($file + ".translateFrame");
+	connectAttr -f ($placetexture + ".rotateFrame") ($file + ".rotateFrame");
+	connectAttr -f ($placetexture + ".mirrorU") ($file + ".mirrorU");
+	connectAttr -f ($placetexture + ".mirrorV") ($file + ".mirrorV");
+	connectAttr -f ($placetexture + ".stagger") ($file + ".stagger");
+	connectAttr -f ($placetexture + ".wrapU") ($file + ".wrapU");
+	connectAttr -f ($placetexture + ".wrapV") ($file + ".wrapV");
+	connectAttr -f ($placetexture + ".repeatUV") ($file + ".repeatUV");
+	connectAttr -f ($placetexture + ".offset") ($file + ".offset");
+	connectAttr -f ($placetexture + ".rotateUV") ($file + ".rotateUV");
+	connectAttr -f ($placetexture + ".noiseUV") ($file + ".noiseUV");
+	connectAttr -f ($placetexture + ".vertexUvOne") ($file + ".vertexUvOne");
+	connectAttr -f ($placetexture + ".vertexUvTwo") ($file + ".vertexUvTwo");
+	connectAttr -f ($placetexture + ".vertexUvThree") ($file + ".vertexUvThree");
+	connectAttr -f ($placetexture + ".vertexCameraOne") ($file + ".vertexCameraOne");
+	connectAttr ($placetexture + ".outUV") ($file + ".uv");
+	connectAttr ($placetexture + ".outUvFilterSize") ($file + ".uvFilterSize");
+	connectAttr -force ($file + ".outColor") ($lambert + ".color");
+	AEassignTextureCB  ($file + ".fileTextureName") $textureimage "image";
+
+	// Setup the filename string attribute
+	string $fileattr = `substitute $basepath $filename ""`;
+	addAttr -ln filename -dt "string" $lambert;
+	setAttr -type "string" ($lambert + ".filename") $fileattr;
+
+	// Setup the lambert name
+	//$lambertname = `match "\/exports.*" $filename`;
+	//$lambertname = `substitute "/exports/" $lambertname ""`;
+
+	// Strip out the base path
+	$lambertname = `substitute $basepath $filename ""`;
+	
+	// Rename the material
+	rename $lambert $lambertname;
+}
+
+global proc createMaterialFromFile(string $filepath)
+{
+	$fileid = `fopen $filepath "r"`;
+
+	while(size($line = `fgetline $fileid`) > 0)
+	{
+		//$line = strip($line);
+
+		string $tokenlist[];
+		tokenize $line $tokenlist;
+
+		int $tokencount = 0;
+
+		for($token in $tokenlist)
+		{
+			if(!`strcmp $token "editorimage"`)
+			{
+				//print("found editorimage: " + $tokenlist[$tokencount + 1] + "\n");
+
+				// Create the material
+				print("Loading image: " + $tokenlist[$tokencount + 1] + "\n");
+				createMaterialFromImage($filepath, $tokenlist[$tokencount + 1]);
+				break;
+			}
+
+			$tokencount++;
+		}
+
+	}
+
+	fclose $fileid;
+}
+
+global proc loadMaterials(string $dirpath)
+{
+	if(!`endsWith $dirpath "/"`)
+		$dirpath += "/";
+
+	string $folderlist[] = `getFileList -fld $dirpath`;
+
+	for($file in $folderlist)
+	{
+		string $filepath = $dirpath + $file;
+		
+		// Recurse down directories
+		if(`filetest -d $filepath`)
+		{
+			print($filepath + "\n");
+
+			listdirtest $filepath;
+		}
+
+		// Use endWith $file ".txt" to get materials
+		// or just make sure that materials are always in their
+		// own directory so _every_ file is a material
+		if(`endsWith $filepath ".txt"`)
+			createMaterialFromFile($filepath);
+	}
+}
+
+global proc testLoad()
+{
+	string $filepath = "C:/projects/materials";
+
+	loadMaterials $filepath;
+}
+
+
+

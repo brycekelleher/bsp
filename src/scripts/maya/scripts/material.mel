@@ -1,0 +1,42 @@
+string $filename = `fileDialog -m 0`;
+
+// Create the shading nodes
+$lambert = `renderCreateBarCB -asShader "surfaceShader" lambert`;
+$file = `shadingNode -asTexture file`;
+$placetexture = `shadingNode -asUtility place2dTexture`;
+
+connectAttr -f ($placetexture + ".coverage") ($file + ".coverage");
+connectAttr -f ($placetexture + ".translateFrame") ($file + ".translateFrame");
+connectAttr -f ($placetexture + ".rotateFrame") ($file + ".rotateFrame");
+connectAttr -f ($placetexture + ".mirrorU") ($file + ".mirrorU");
+connectAttr -f ($placetexture + ".mirrorV") ($file + ".mirrorV");
+connectAttr -f ($placetexture + ".stagger") ($file + ".stagger");
+connectAttr -f ($placetexture + ".wrapU") ($file + ".wrapU");
+connectAttr -f ($placetexture + ".wrapV") ($file + ".wrapV");
+connectAttr -f ($placetexture + ".repeatUV") ($file + ".repeatUV");
+connectAttr -f ($placetexture + ".offset") ($file + ".offset");
+connectAttr -f ($placetexture + ".rotateUV") ($file + ".rotateUV");
+connectAttr -f ($placetexture + ".noiseUV") ($file + ".noiseUV");
+connectAttr -f ($placetexture + ".vertexUvOne") ($file + ".vertexUvOne");
+connectAttr -f ($placetexture + ".vertexUvTwo") ($file + ".vertexUvTwo");
+connectAttr -f ($placetexture + ".vertexUvThree") ($file + ".vertexUvThree");
+connectAttr -f ($placetexture + ".vertexCameraOne") ($file + ".vertexCameraOne");
+connectAttr ($placetexture + ".outUV") ($file + ".uv");
+connectAttr ($placetexture + ".outUvFilterSize") ($file + ".uvFilterSize");
+connectAttr -force ($file + ".outColor") ($lambert + ".color");
+AEassignTextureCB  ($file + ".fileTextureName") $filename "image";
+
+// Setup the filename string attribute
+addAttr -ln filename -dt "string" $lambert;
+setAttr -type "string" ($lambert + ".filename") $filename;
+
+// Setup the lambert name
+// has to be last as the reference becomes invalid once it's renamed
+//$lambertname = `match "\/textures.*" $filename`;
+//$lambertname = `substitute "/textures/" $lambertname ""`;
+//rename $lambert $lambertname
+$lambertname = `match "\/exports.*" $filename`;
+$lambertname = `substitute "/exports/" $lambertname ""`;
+rename $lambert $lambertname
+
+
