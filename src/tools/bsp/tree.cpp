@@ -5,8 +5,8 @@
 // divide the list
 // recurse on the list until no polygons remain
 
-
-const float planeepsilon = 0.02f;
+// at 128 = 1m, 0.02 = 0.15625mm
+const float epsilon = 0.02f;
 
 typedef struct bsppoly_s
 {
@@ -63,10 +63,7 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 
 static int PolygonOnPlaneSide(bsppoly_t *p, plane_t plane)
 {
-	vec3 normal	= plane.Normal();
-	float distance	= plane.Distance();
-	
-	return Polygon_OnPlaneSide(p->polygon, normal, distance, planeepsilon);
+	return Polygon_OnPlaneSide(p->polygon, plane, epsilon);
 }
 
 static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
@@ -163,28 +160,26 @@ static void SplitPolygon(plane_t plane, bsppoly_t *p, bsppoly_t **f, bsppoly_t *
 	
 	// split the polygon
 	{
-		vec3 normal	= plane.Normal();
-		float distance	= plane.Distance();
-		Polygon_SplitWithPlane(p->polygon, normal, distance, planeepsilon, &ff, &bb);
+		Polygon_SplitWithPlane(p->polygon, plane, epsilon, &ff, &bb);
 	}
 	
-	if(ff)
+	if (ff)
 	{
 		*f = MallocBSPPoly(ff);
 	
 		// fixme: probably a better way to do this?
 		plane_t inplane = PolygonPlane(p);
-		if(!CheckPolygonOnPlane(*f, inplane))
+		if (!CheckPolygonOnPlane(*f, inplane))
 			Error("Front polygon doesn't sit on original plane after split\n");
 	}
 	
-	if(bb)
+	if (bb)
 	{
 		*b = MallocBSPPoly(bb);
 
 		// fixme: probably a better way to do this?
 		plane_t inplane = PolygonPlane(p);
-		if(!CheckPolygonOnPlane(*b, inplane))
+		if (!CheckPolygonOnPlane(*b, inplane))
 			Error("Back polygon doesn't sit on original plane after split\n");
 	}
 }
