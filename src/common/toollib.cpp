@@ -107,9 +107,7 @@ int ReadFile(const char* filename, void **data)
 	if(fp)
 		Error("Failed to open file \"%s\"\n", filename);
 
-	fseek(fp, 0, SEEK_END);
-	int size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
+	int size = FileSize(fp);
 	
 	*data = malloc(size);
 	fread(*data, size, 1, fp);
