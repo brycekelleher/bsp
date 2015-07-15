@@ -44,4 +44,6 @@ public:
 	plane_t operator-();
 };
 
+float Distance(plane_t plane, vec3 x);
+
 #endif

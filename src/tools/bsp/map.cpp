@@ -122,7 +122,7 @@ void ReadMapFile(char *filename)
 	char* token;
 
 	Message("Processing %s...\n", filename);
-	fp = OpenMapFile(filename);
+	fp = FileOpenTextRead(filename);
 
 	while((token = ReadToken(fp)))
 	{

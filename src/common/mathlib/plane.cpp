@@ -203,3 +203,9 @@ plane_t plane_t::operator-()
 	return r;
 }
 
+float Distance(plane_t plane, vec3 x)
+{
+	return plane.Distance(x);
+}
+
+

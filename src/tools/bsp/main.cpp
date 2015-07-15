@@ -3,37 +3,7 @@
 const char	*outputfilename = "out.bsp";
 static bool	verbose = false;
 
-// ==============================================
-// errors and warnings
 
-void Error(const char *error, ...)
-{
-	va_list valist;
-	char buffer[2048];
-
-	va_start(valist, error);
-	vsprintf(buffer, error, valist);
-	va_end(valist);
-
-	fprintf(stderr, "\x1b[31m");
-	fprintf(stderr, "Error: %s", buffer);
-	fprintf(stderr, "\x1b[0m");
-	exit(1);
-}
-
-void Warning(const char *warning, ...)
-{
-	va_list valist;
-	char buffer[2048];
-
-	va_start(valist, warning);
-	vsprintf(buffer, warning, valist);
-	va_end(valist);
-
-	fprintf(stderr, "\x1b[33m");
-	fprintf(stderr, "Warning: %s", buffer);
-	fprintf(stderr, "\x1b[0m");
-}
 
 void Message(const char *format, ...)
 {
@@ -51,6 +21,10 @@ void Message(const char *format, ...)
 
 	fprintf(stdout, "%s", buffer);
 }
+
+
+
+
 
 // ==============================================
 // Memory allocation

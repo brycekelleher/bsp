@@ -60,6 +60,11 @@ void Error(const char *error, ...);
 void Warning(const char *warning, ...);
 void Message(const char *format, ...);
 
+FILE *FileOpenBinaryRead(const char *filename);
+FILE *FileOpenBinaryWrite(const char *filename);
+FILE *FileOpenTextRead(const char *filename);
+FILE *FileOpenTextWrite(const char *filename);
+
 void *Malloc(int numbytes);
 void *MallocZeroed(int numbytes);
 

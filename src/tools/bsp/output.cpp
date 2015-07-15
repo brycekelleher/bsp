@@ -57,21 +57,12 @@ static void EmitTree(bsptree_t *tree, FILE *fp)
 	int rootnode = EmitNode(tree->root, fp);
 	
 }
-// fixme: two copies of this now. One in map read and one in map write
-static FILE *OpenOutputFile(const char *filename)
-{
-	FILE *fp = fopen(filename, "wb");
-	if(!fp)
-		Error("Failed to open file \"%s\"\n", filename);
-	
-	return fp;
-}
 
 void WriteBinary(bsptree_t *tree)
 {
 	Message("Writing binary \"%s\"...\n", outputfilename);
 	
-	FILE *fp = OpenOutputFile(outputfilename);
+	FILE *fp = FileOpenBinaryWrite(outputfilename);
 	
 	EmitTree(tree, fp);
 }

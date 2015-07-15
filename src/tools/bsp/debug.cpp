@@ -2,18 +2,6 @@
 
 static FILE *debugfp;
 
-// fixme: move this into another file
-static FILE *OpenFile(const char *filename)
-{
-	FILE *fp;
-	
-	fp = fopen(filename, "w");
-	if(!fp)
-		Error("Failed to open file \"%s\"\n", filename);
-	
-	return fp;
-}
-
 void DebugWritePolygon(polygon_t *p)
 {
 	fprintf(debugfp, "color 1 0 0 1\n");
@@ -45,7 +33,7 @@ void DebugWriteWireFillPolygon(polygon_t *p)
 
 void DebugInit()
 {
-	debugfp = OpenFile("debug.txt");
+	debugfp = FileOpenTextWrite("debug.txt");
 }
 
 void DebugShutdown()

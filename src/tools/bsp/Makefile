@@ -9,6 +9,7 @@ LDFLAGS		= -lm -ggdb
 
 COMMON		= ../../common
 MATHLIB		= ../../common/mathlib
+TOOLCOMMON	= ../common
 INCLUDES	+= -I$(COMMON) -I$(MATHLIB)
 
 #disable some warnings when in dev mode
@@ -18,6 +19,7 @@ CXXFLAGS 	+= -Wno-unused-function -Wno-unneeded-internal-declaration
 endif
 
 OBJECTS		+= $(MATHLIB)/vec3.o $(MATHLIB)/plane.o $(MATHLIB)/polygon.o
+OBJECTS		+= $(TOOLCOMMON)/toollib.o
 OBJECTS		+= token.o nodes.o debug.o test.o
 OBJECTS		+= tree.o map.o output.o
 OBJECTS		+= main.o
