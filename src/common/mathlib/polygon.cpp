@@ -57,18 +57,22 @@ void Polygon_Free(polygon_t* p)
 polygon_t* Polygon_Copy(polygon_t* p)
 {
 	polygon_t	*c;
+	int		i;
 
-	int numbytes = Polygon_MemSize(p->maxvertices);
-	c = (polygon_t*)Polygon_MemAlloc(numbytes);
-
-	memcpy(c, p, numbytes);
+	c = Polygon_Alloc(p->maxvertices);
+	
+	c->maxvertices = p->maxvertices;
+	c->numvertices = p->numvertices;
+	
+	for (i = 0; i < c->numvertices; i++)
+		c->vertices[i] = p->vertices[i];
 
 	return c;
 }
 
 void Polygon_AddVertex(polygon_t *p, float x, float y, float z)
 {
-	if(p->numvertices + 1 >= p->maxvertices)
+	if (p->numvertices + 1 >= p->maxvertices)
 		assert(0);
 
 	p->vertices[p->numvertices].x = x;
@@ -82,7 +86,7 @@ polygon_t *Polygon_Reverse(polygon_t* p)
 
 	r = (polygon_t*)Polygon_Alloc(p->maxvertices);
 
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 		r->vertices[(i + 1) % p->numvertices] = p->vertices[p->numvertices - 1 - i];
 
 	return r;
@@ -93,15 +97,15 @@ void Polygon_BoundingBox(polygon_t* p, vec3* bmin, vec3* bmax)
 	*bmin = vec3( 1e20f,  1e20f,  1e20f);
 	*bmax = vec3(-1e20f, -1e20f, -1e20f);
 
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 	{
 		vec3 *v = p->vertices + i;
 
-		for(int j = 0; j < 3; j++)
+		for (int j = 0; j < 3; j++)
 		{
-			if(v[j] < bmin[j])
+			if (v[j] < bmin[j])
 				bmin[j] = v[j];
-			if(v[j] > bmax[j])
+			if (v[j] > bmax[j])
 				bmax[j] = v[j];
 		}
 	}
@@ -112,7 +116,7 @@ vec3 Polygon_Centroid(polygon_t* p)
 	vec3 v;
 	
 	v = vec3(0, 0, 0);
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 		v = v + p->vertices[i];
 
 	v = (1.0f / (float)p->numvertices) * v;
@@ -123,7 +127,7 @@ vec3 Polygon_Centroid(polygon_t* p)
 vec3 Polygon_AreaVector(polygon_t *p)
 {
 	vec3 area = vec3(0, 0, 0);
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 	{
 		int j = (i + 1) % p->numvertices;
 		
@@ -191,7 +195,7 @@ static plane_t Polygon_PlaneFromAveragedNormals(polygon_t *p)
 	vec3 normal = vec3(0, 0, 0);
 	float distance = 0.0f;
 	int numtriangles = p->numvertices - 2;
-	for(int i = 0; i < numtriangles; i++)
+	for (int i = 0; i < numtriangles; i++)
 	{
 		vec3 s = p->vertices[i + 1] - p->vertices[0];
 		vec3 t = p->vertices[i + 2] - p->vertices[i + 1];
@@ -212,7 +216,7 @@ static plane_t Polygon_PlaneFromAveragedNormals(polygon_t *p)
 static plane_t Polygon_PlaneFromArea(polygon_t *p)
 {
 	vec3 area = vec3(0, 0, 0);
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 	{
 		int j = (i + 1) % p->numvertices;
 		
@@ -252,7 +256,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 
 	// classify each point
 	{
-		for(i = 0; i < in->numvertices; i++)
+		for (i = 0; i < in->numvertices; i++)
 		{
 			sides[i] = PointOnPlaneSide(in->vertices[i], plane, epsilon);
 			counts[sides[i]]++;
@@ -262,7 +266,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	}
 	
 	// all points are on the plane
-	if(!counts[PLANE_SIDE_FRONT] && !counts[PLANE_SIDE_BACK])
+	if (!counts[PLANE_SIDE_FRONT] && !counts[PLANE_SIDE_BACK])
 	{
 		*front = NULL;
 		*back = NULL;
@@ -270,7 +274,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	}
 
 	// all points are front side
-	if(!counts[PLANE_SIDE_BACK])
+	if (!counts[PLANE_SIDE_BACK])
 	{
 		*front = Polygon_Copy(in);
 		*back = NULL;
@@ -278,7 +282,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	}
 
 	// all points are back side
-	if(!counts[PLANE_SIDE_FRONT])
+	if (!counts[PLANE_SIDE_FRONT])
 	{
 		*front = NULL;
 		*back = Polygon_Copy(in);
@@ -292,14 +296,14 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	*front = f = Polygon_Alloc(maxpts);
 	*back = b = Polygon_Alloc(maxpts);
 		
-	for(i = 0; i < in->numvertices; i++)
+	for (i = 0; i < in->numvertices; i++)
 	{
 		vec3	p1, p2, mid;
 
 		p1 = in->vertices[i];
 		p2 = in->vertices[(i + 1) % in->numvertices];
 		
-		if(sides[i] == PLANE_SIDE_ON)
+		if (sides[i] == PLANE_SIDE_ON)
 		{
 			// add the point to the front polygon
 			f->vertices[f->numvertices] = p1;
@@ -312,14 +316,14 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 			continue;
 		}
 	
-		if(sides[i] == PLANE_SIDE_FRONT)
+		if (sides[i] == PLANE_SIDE_FRONT)
 		{
 			// add the point to the front polygon
 			f->vertices[f->numvertices] = p1;
 			f->numvertices++;
 		}
 
-		if(sides[i] == PLANE_SIDE_BACK)
+		if (sides[i] == PLANE_SIDE_BACK)
 		{
 			b->vertices[b->numvertices] = p1;
 			b->numvertices++;
@@ -333,14 +337,14 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 		
 		// The next point crosses the plane, so generate a split point
 		
-		for(j = 0; j < 3; j++)
+		for (j = 0; j < 3; j++)
 		{
 			// avoid round off error when possible
-			if(plane[j] == 1)
+			if (plane[j] == 1)
 			{
 				mid[j] = -plane[3];
 			}
-			else if(plane[j] == -1)
+			else if (plane[j] == -1)
 			{
 				mid[j] = plane[3];
 			}
@@ -361,7 +365,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 		b->numvertices++;
 	}
 	
-	if(f->numvertices > maxpts || b->numvertices > maxpts)
+	if (f->numvertices > maxpts || b->numvertices > maxpts)
 	{
 		assert(0);
 	}
@@ -381,21 +385,21 @@ int Polygon_OnPlaneSide(polygon_t *p, plane_t plane, float epsilon)
 	front = 0;
 	back = 0;
 
-	for(i = 0; i < p->numvertices; i++)
+	for (i = 0; i < p->numvertices; i++)
 	{
 		int side = PointOnPlaneSide(p->vertices[i], plane, epsilon);
 		
-		if(side == PLANE_SIDE_BACK)
+		if (side == PLANE_SIDE_BACK)
 		{
-			if(front)
+			if (front)
 				return PLANE_SIDE_CROSS;
 			back = 1;
 			continue;
 		}
 
-		if(side == PLANE_SIDE_FRONT)
+		if (side == PLANE_SIDE_FRONT)
 		{
-			if(back)
+			if (back)
 				return PLANE_SIDE_CROSS;
 			front = 1;
 			continue;
