@@ -64,11 +64,17 @@ FILE *FileOpenBinaryRead(const char *filename);
 FILE *FileOpenBinaryWrite(const char *filename);
 FILE *FileOpenTextRead(const char *filename);
 FILE *FileOpenTextWrite(const char *filename);
+bool FileExists(const char *filename);
+int FileSize(FILE *fp);
+void FileClose(FILE *fp);
+void WriteFile(const char *filename, void *data, int numbytes);
+int ReadFile(const char* filename, void **data);
 
 // debug.cpp
-void DebugPrintfPolygon(polygon_t *p);
-void DebugWritePolygon(polygon_t *p);
-void DebugWriteWireFillPolygon(polygon_t *p);
+extern FILE *debugfp;
+void DebugPrintfPolygon(FILE *fp, polygon_t *p);
+void DebugWritePolygon(FILE *fp, polygon_t *p);
+void DebugWriteWireFillPolygon(FILE *fp, polygon_t *p);
 void DebugInit();
 void DebugShutdown();
 

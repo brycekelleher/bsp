@@ -37,13 +37,15 @@ void PlanesForLeafRecursive(bspnode_t *node, bspnode_t *prev)
 	if (node->children[1] == prev)
 		plane = -plane;
 	
-	planes[numplanes++] = plane;
+	planes[numplanes] = plane;
+	numplanes++;
 	
 	PlanesForLeafRecursive(node->parent, node);
 }
 
 void PlanesForLeaf(bspnode_t *node)
 {
+	numplanes = 0;
 	PlanesForLeafRecursive(node->parent, node);
 }
 
@@ -78,10 +80,10 @@ polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	vec3	u, v;
 	
 	// closest axis aligned basis for normal
-	vec3 normal = plane.Normal();
+	vec3 normal = plane.GetNormal();
 	int index = AbsLargestComponent(normal);
 	if(normal[index] < 0)
-		index *= 2;
+		index += 3;
 	vec3 up = vec3(basistab[index][1][0], basistab[index][1][1], basistab[index][1][2]);
 	
 	u = Cross(up, normal);
@@ -93,7 +95,7 @@ polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	polygon_t *p = Polygon_Alloc(4);
 	
 	// determine the u and v vectors
-	vec3 xyz = plane.Normal() * -plane.Distance();
+	vec3 xyz = plane.GetNormal() * -plane.GetDistance();
 
 	p->vertices[0] = xyz - (usize * u) - (vsize * v);
 	p->vertices[1] = xyz + (usize * u) - (vsize * v);
@@ -114,15 +116,30 @@ void TestPolygonForPlane()
 	plane.c = n[2];
 	plane.d = 0;
 
-	PolygonForPlane(plane, 4096.0f, 4096.0f);
+	PolygonForPlane(plane, 512.0f, 512.0f);
 }
 
-void Blah(bspnode_t *n, polygon_t *p)
+static FILE *portalfp;
+
+FILE *OpenPortalFile(bspnode_t *l)
+{
+	static char filename[2048];
+	sprintf(filename, "portal_%p.gl", l);
+
+	return FileOpenTextWrite(filename);
+}
+
+void Blah(bspnode_t *n, polygon_t *p, bspnode_t *l)
 {
 	if(!n->children[0] && !n->children[1])
 	{
+		// it's not a portal if it's landed back in the original leaf
+		if (n == l)
+			return;
+		
 		// this is a leaf node
-		DebugPrintfPolygon(p);
+		DebugPrintfPolygon(stdout, p);
+		DebugWriteWireFillPolygon(portalfp, p);
 		return;
 	}
 	
@@ -130,39 +147,44 @@ void Blah(bspnode_t *n, polygon_t *p)
 	
 	if(side == PLANE_SIDE_FRONT)
 	{
-		Blah(n->children[0], p);
+		Blah(n->children[0], p, l);
 	}
 	else if(side == PLANE_SIDE_BACK)
 	{
-		Blah(n->children[1], p);
+		Blah(n->children[1], p, l);
 	}
 	else if(side == PLANE_SIDE_ON)
 	{
 		polygon_t *f, *b;
 		f = Polygon_Copy(p);
 		b = Polygon_Copy(p);
-		Blah(n->children[0], f);
-		Blah(n->children[1], b);
+		Blah(n->children[0], f, l);
+		Blah(n->children[1], b, l);
 	}
 	else if(side == PLANE_SIDE_CROSS)
 	{
 		polygon_t *f, *b;
 		Polygon_SplitWithPlane(p, n->plane, epsilon, &f, &b);
-		Blah(n->children[0], f);
-		Blah(n->children[1], b);
+		Blah(n->children[0], f, l);
+		Blah(n->children[1], b, l);
 	}
 }
 
+// It's possible for an entire polygon to get clipped away
+
+// it's possible for an entire polygon to get clipped away if the plane
+// doesn't form the one of the immediate 'bounding planes' - ie it's
+// further up in the tree. If this happens we need to bail out
 polygon_t* BuildLeafPolygon(bspnode_t *l, plane_t plane)
 {
-	polygon_t * p = PolygonForPlane(plane, 4096.0f, 4096.0f);
+	polygon_t * p = PolygonForPlane(plane, 512.0f, 512.0f);
 	
 	// walk up the tree from leaf to root and clip the polygon in place
 	{
 		bspnode_t *prev = l;
 		bspnode_t *node = l->parent;
 
-		while(node)
+		while(node && p)
 		{
 			// flip the plane if the previous node was on the back side
 			plane_t plane = node->plane;
@@ -176,12 +198,14 @@ polygon_t* BuildLeafPolygon(bspnode_t *l, plane_t plane)
 				
 				// clip the polygon
 				Polygon_SplitWithPlane(p, plane, epsilon, &f, &b);
+
 				Polygon_Free(p);
 				if (b)
 					Polygon_Free(b);
+				
 				p = f;
 			}
-	
+
 			// walk another level up the tree
 			prev = node;
 			node = node->parent;
@@ -191,8 +215,16 @@ polygon_t* BuildLeafPolygon(bspnode_t *l, plane_t plane)
 	return p;
 }
 
+// for each plane in the convex volume
+	// create a polygons on each of the convex volume sides
+	// push this polygon into the tree and see what leaves it
+	// falls into
 void ProcessLeaf(bspnode_t *root, bspnode_t *l)
 {
+	portalfp = OpenPortalFile(l);
+	
+	Message("Process leaf %p\n", l);
+	
 	// grab the planes which form the leaf
 	PlanesForLeaf(l);
 	
@@ -200,11 +232,23 @@ void ProcessLeaf(bspnode_t *root, bspnode_t *l)
 	for(int i = 0; i < numplanes; i++)
 	{
 		// create a polygon
+		printf("build polygon %i\n", i);
 		polygon_t *p = BuildLeafPolygon(l, planes[i]);
+		
+		if (!p)
+			continue;
 		
 		// push it into the tree
 		// see which leaf it pops into
 		//ProcessLeafPolygon(l, polygon);
-		Blah(root, p);
+		Blah(root, p, l);
 	}
+	
+	FileClose(portalfp);
+}
+
+void FindPortals(bsptree_t *tree)
+{
+	for(bspnode_t *l = tree->leafs; l; l = l->leafnext)
+		ProcessLeaf(tree->root, l);
 }

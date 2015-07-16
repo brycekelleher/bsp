@@ -98,7 +98,7 @@ static void ReadPolygon(FILE *fp)
 				// AddToMap()
 				
 				//DebugWritePolygon(p->polygon);
-				DebugWriteWireFillPolygon(p->polygon);
+				DebugWriteWireFillPolygon(debugfp, p->polygon);
 			}
 			break;
 		}

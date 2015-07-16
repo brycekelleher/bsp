@@ -113,9 +113,9 @@ static void TreeTest()
 	Message("%i tree depth\n", tree->depth);
 	
 	{
-		void ProcessLeaf(bspnode_t *root, bspnode_t *l);
+		void FindPortals(bsptree_t *tree);
 		// fixme: pass in the tree at top-level
-		ProcessLeaf(tree->root, tree->leafs);
+		FindPortals(tree);
 	}
 	
 	{
