@@ -1,0 +1,12 @@
+The basic idea of portalization is
+For each leaf we want to know which other leaves it borders and the geometry that forms that border.
+
+The observation that portals will only exist only planes which form the convex volume of the leaf
+If any leaves share a plane the portal will exist on this plane
+
+To this end it means that if we create polygons that represent the surface of the convex volume and then push them into the tree and see which leaf node they eventually appear in it's then the two leaves are connected via this portal.
+The planes form the sub-division of the space. If two leaves are adjacent then the portal must exist along one of the planes that divides the original subspace that both leaves are contained in. By pushing them down the tree we are pushing the portals into the other subspaces and 'feeling' where they end up. Ultimately the portals must exist in other subspaces other then the leaves own.
+
+There are a couple gotchas.
+1/ If you use all the planes that form the convex space - a walk from the leaf to the root - then it's possible the plane may be clipped away entirely. This is more true for planes at the top of the space as the plane may not form part of the 'surface' of the convex volume. Only the planes which directly form the watertight convex volume will become portals.
+2/ A single portal may actually stride two convex volumes. this can be handled by clipping the polygon against the tree as it's pushed down. As mentioned above polygons which lie on the plane must be pushed down both sides. The plane which the polygon lies in is the most important as the subspace likely lie on either side of this plane. Essentially the polygon is being pushed into all subspaces.
