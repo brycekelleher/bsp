@@ -29,15 +29,18 @@ float& plane_t::operator[](int i)
 
 void plane_t::Reverse()
 {
-	plane_t(-a, -b, -c, -d);
+	a = -a;
+	b = -b;
+	c = -c;
+	d = -d;
 }
 
-vec3 plane_t::Normal()
+vec3 plane_t::GetNormal()
 {
 	return vec3(a, b, c);
 }
 
-float plane_t::Distance()
+float plane_t::GetDistance()
 {
 	return d;
 }
@@ -88,7 +91,7 @@ int plane_t::BoxOnPlaneSide(vec3 min, vec3 max, float epsilon)
 	
 	for (int i=0; i < 3; i++)
 	{
-		vec3 normal = Normal();
+		vec3 normal = GetNormal();
 		
 		if (normal[i] < 0)
 		{

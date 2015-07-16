@@ -38,8 +38,8 @@ public:
 	
 	void Reverse();
 	void PositionThroughPoint(vec3 p);
-	vec3 Normal();
-	float Distance();
+	vec3 GetNormal();
+	float GetDistance();
 	void Zero();
 	void FromPoints(vec3 p0, vec3 p1, vec3 p2);
 	void FromVecs(vec3 v0, vec3 v1, vec3 p);
