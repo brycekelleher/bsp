@@ -312,21 +312,21 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 			continue;
 		}
 	
-		if(sides[i] == POLYGON_SIDE_FRONT)
+		if(sides[i] == PLANE_SIDE_FRONT)
 		{
 			// add the point to the front polygon
 			f->vertices[f->numvertices] = p1;
 			f->numvertices++;
 		}
 
-		if(sides[i] == POLYGON_SIDE_BACK)
+		if(sides[i] == PLANE_SIDE_BACK)
 		{
 			b->vertices[b->numvertices] = p1;
 			b->numvertices++;
 		}
 
 		// if the next point doesn't straddle the plane continue
-		if (sides[i+1] == POLYGON_SIDE_ON || sides[i+1] == sides[i])
+		if (sides[i+1] == PLANE_SIDE_ON || sides[i+1] == sides[i])
 		{
 			continue;
 		}

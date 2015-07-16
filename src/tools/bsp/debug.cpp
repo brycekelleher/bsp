@@ -2,6 +2,17 @@
 
 static FILE *debugfp;
 
+void DebugPrintfPolygon(polygon_t *p)
+{
+	fprintf(stdout, "polygon %p, numvertices=%i\n", p, p->numvertices);
+	for(int i = 0; i < p->numvertices; i++)
+		fprintf(stdout, "vertex %i: (%f %f %f)\n",
+			i,
+			p->vertices[i][0],
+			p->vertices[i][1],
+			p->vertices[i][2]);
+}
+
 void DebugWritePolygon(polygon_t *p)
 {
 	fprintf(debugfp, "color 1 0 0 1\n");

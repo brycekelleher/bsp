@@ -4,11 +4,6 @@
 #include "vec3.h"
 #include "plane.h"
 
-#define POLYGON_SIDE_ON		0
-#define POLYGON_SIDE_FRONT	1
-#define POLYGON_SIDE_BACK	2
-#define POLYGON_SIDE_CROSS	3
-
 typedef struct polygon_s
 {
 	int	maxvertices;
@@ -54,6 +49,8 @@ vec3 Polygon_Normal(polygon_t* p);
 plane_t Polygon_Plane(polygon_t *p);
 
 void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon_t **front, polygon_t **back);
+
+// return which side of the plane the polygon is on
 int Polygon_OnPlaneSide(polygon_t *p, plane_t plane, float epsilon);
 
 #endif

@@ -170,7 +170,7 @@ static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
 	{
 		// favour polygons that don't cause splits
 		int side = PolygonOnPlaneSide(list, plane);
-		if(side != POLYGON_SIDE_ON && side != POLYGON_SIDE_CROSS)
+		if(side != PLANE_SIDE_ON && side != PLANE_SIDE_CROSS)
 			score += 1;
 		
 		// favour planes which are axial

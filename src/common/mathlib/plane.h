@@ -1,10 +1,20 @@
 #ifndef __PLANE_H__
 #define __PLANE_H__
 
-#define PLANE_SIDE_ON		0
+#if 0
+#define PLANE_SIDE_FRONT	0
 #define PLANE_SIDE_BACK		1
-#define PLANE_SIDE_FRONT	2
+#define PLANE_SIDE_ON		2
 #define PLANE_SIDE_CROSS	3
+#endif
+
+enum
+{
+	PLANE_SIDE_FRONT	= 0,
+	PLANE_SIDE_BACK		= 1,
+	PLANE_SIDE_ON		= 2,
+	PLANE_SIDE_CROSS	= 3
+};
 
 #define PLANE_DEFAULT_EPSILON	(0.1f)
 

@@ -55,7 +55,7 @@ typedef struct bsptree_s
 extern const char	*outputfilename;
 extern mapdata_t	*mapdata;
 
-// main.c
+// toolib imports
 void Error(const char *error, ...);
 void Warning(const char *warning, ...);
 void Message(const char *format, ...);
@@ -65,15 +65,19 @@ FILE *FileOpenBinaryWrite(const char *filename);
 FILE *FileOpenTextRead(const char *filename);
 FILE *FileOpenTextWrite(const char *filename);
 
-void *Malloc(int numbytes);
-void *MallocZeroed(int numbytes);
-
-char* ReadToken(FILE *fp);
-
+// debug.cpp
+void DebugPrintfPolygon(polygon_t *p);
 void DebugWritePolygon(polygon_t *p);
 void DebugWriteWireFillPolygon(polygon_t *p);
 void DebugInit();
 void DebugShutdown();
+
+// main
+void *Malloc(int numbytes);
+void *MallocZeroed(int numbytes);
+
+// token.cpp
+char* ReadToken(FILE *fp);
 
 // map file
 void ReadMapFile(char *filename);
