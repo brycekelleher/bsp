@@ -30,19 +30,19 @@ void Polygon_SetMemCallbacks(void *(*alloccallback)(int numbytes), void (*freeca
 	Polygon_MemFree		= freecallback;
 }
 
-static int Polygon_MemSize(int maxvertices)
+static int Polygon_MemSize(int numvertices)
 {
-	return sizeof(polygon_t) + (maxvertices * sizeof(vec3));
+	return sizeof(polygon_t) + (numvertices * sizeof(vec3));
 }
 
-polygon_t *Polygon_Alloc(int maxvertices)
+polygon_t *Polygon_Alloc(int numvertices)
 {
 	polygon_t	*p;
 
-	int numbytes = Polygon_MemSize(maxvertices);
+	int numbytes = Polygon_MemSize(numvertices);
 	p = (polygon_t*)Polygon_MemAlloc(numbytes);
 
-	p->maxvertices	= maxvertices;
+	p->maxvertices	= numvertices;
 	p->numvertices	= 0;
 	p->vertices	= (vec3*)(p + 1);
 
@@ -120,55 +120,6 @@ vec3 Polygon_Centroid(polygon_t* p)
 	return v;
 }
 
-#if 0
-static vec3 Polygon_TriCrossVector(float v0[3], float v1[3], float v2[3])
-{
-	float x = (v1[0] - v0[0]) * (v2[1] - v0[1]) - (v2[0] - v0[0]) * (v1[1] - v0[1]);
-	float y = (v1[2] - v0[2]) * (v2[0] - v0[0]) - (v2[2] - v0[2]) * (v1[0] - v0[0]);
-	float z = (v1[1] - v0[1]) * (v2[2] - v0[2]) - (v2[1] - v0[1]) * (v1[2] - v0[2]);
-
-	return vec3(x, y, z);
-}
-
-static vec3 Polygon_TriProjectedArea(float v0[3], float v1[3], float v2[3])
-{
-	return 0.5f * Polygon_TriCrossVector(v0, v1, v2);
-}
-
-static float Polygon_TriArea(float v0[3], float v1[3], float v2[3])
-{
-	vec3 a = Polygon_TriCrossVector(v0, v1, v2);
-	return 0.5f * sqrtf((a[0] * a[0]) + (a[1] * a[1]) + (a[2] * a[2]));
-}
-
-vec3 Polygon_ProjectedArea(polygon_t *p)
-{
-	float x, y, z;
-
-	x = y = z = 0;
-
-	for(int i = 0; i < p->numvertices - 2; i++)
-	{
-		vec3 area = Polygon_TriProjectedArea(p->vertices[0], p->vertices[i + 1], p->vertices[i + 2]); 
-
-		x += area[0];
-		y += area[1];
-		z += area[2];
-	}
-
-	return vec3(x, y, z);
-}
-
-static vec3 Polygon_NormalFromArea(polygon_t *p)
-{
-	vec3 n = Polygon_ProjectedArea(p);
-	
-	n = Normalize(n);
-	
-	return n;
-}
-#endif
-
 vec3 Polygon_AreaVector(polygon_t *p)
 {
 	vec3 area = vec3(0, 0, 0);
@@ -190,7 +141,10 @@ vec3 Polygon_AreaVector(polygon_t *p)
 float Polygon_Area(polygon_t *p)
 {
 	vec3 area = Polygon_AreaVector(p);
-	return Length(area);
+	
+	float length = Length(area);
+	
+	return length;
 }
 
 static vec3 Polygon_NormalFromEdges(polygon_t* p)
@@ -223,6 +177,69 @@ vec3 Polygon_Normal(polygon_t *p)
 	return Polygon_NormalFromProjectedArea(p);
 }
 
+static plane_t Polygon_PlaneFromPoints(polygon_t *p)
+{
+	plane_t plane;
+	
+	plane.FromPoints(p->vertices[0], p->vertices[1], p->vertices[2]);
+	
+	return plane;
+}
+
+static plane_t Polygon_PlaneFromAveragedNormals(polygon_t *p)
+{
+	vec3 normal = vec3(0, 0, 0);
+	float distance = 0.0f;
+	int numtriangles = p->numvertices - 2;
+	for(int i = 0; i < numtriangles; i++)
+	{
+		vec3 s = p->vertices[i + 1] - p->vertices[0];
+		vec3 t = p->vertices[i + 2] - p->vertices[i + 1];
+		vec3 cross = Cross(s, t);
+		
+		cross = Normalize(cross);
+		normal = normal + cross;	// fixme: cant use += ?
+		
+		distance += -Dot(cross, p->vertices[0]);
+	}
+	
+	normal = (1.0f / numtriangles) * normal;
+	distance = (1.0f / numtriangles) * distance;
+	
+	return plane_t(normal.x, normal.y, normal.z, distance);
+}
+
+static plane_t Polygon_PlaneFromArea(polygon_t *p)
+{
+	vec3 area = vec3(0, 0, 0);
+	for(int i = 0; i < p->numvertices; i++)
+	{
+		int j = (i + 1) % p->numvertices;
+		
+		vec3 vi = p->vertices[i];
+		vec3 vj = p->vertices[j];
+		
+		area[2] += (vi[0] * vj[1]) - (vj[0] * vi[1]);
+		area[0] += (vi[1] * vj[2]) - (vj[1] * vi[2]);
+		area[1] += (vi[2] * vj[0]) - (vj[2] * vi[0]);
+	}
+	
+	area = Normalize(area);
+	
+	plane_t plane;
+	plane[0] = area[0];
+	plane[1] = area[1];
+	plane[2] = area[2];
+	plane[3] = -Dot(p->vertices[0], area);
+	
+	return plane;
+}
+
+plane_t Polygon_Plane(polygon_t *p)
+{
+	return Polygon_PlaneFromArea(p);
+}
+
 void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon_t **front, polygon_t **back)
 {
 	int		sides[32+4];
@@ -245,7 +262,6 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	}
 	
 	// all points are on the plane
-	// fixme: what happens if the polygon is degenerate?
 	if(!counts[PLANE_SIDE_FRONT] && !counts[PLANE_SIDE_BACK])
 	{
 		*front = NULL;
@@ -332,8 +348,8 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 			{
 				float dist1, dist2, dot;
 				
-				dist1 = plane.Distance(p1);
-				dist2 = plane.Distance(p2);
+				dist1 = Distance(plane, p1);
+				dist2 = Distance(plane, p2);
 				dot = dist1 / (dist1 - dist2);
 				mid[j] = p1[j] + dot * (p2[j] - p1[j]);
 			}
@@ -394,38 +410,5 @@ int Polygon_OnPlaneSide(polygon_t *p, plane_t plane, float epsilon)
 	return PLANE_SIDE_ON;
 }
 
-#if 0
-// fixme: move these somewhere else
-float Polygon_TriangleArea2D(float v[3][2])
-{
-	return ((v[1][0] - v[0][0]) * (v[2][1] - v[0][1]) - (v[2][0] - v[0][0]) * (v[1][1] - v[0][1]));
-}
-
-float Polygon_TriangleArea2D(float v0[2], float v1[2], float v2[2])
-{
-	return ((v1[0] - v0[0]) * (v2[1] - v0[1]) - (v2[0] - v0[0]) * (v1[1] - v0[1]));
-}
-
-static float Polygon_TriangleProjectedArea(int axis, float v0[3], float v1[3], float v2[3])
-{
-	float v[3][2];
-
-	static int axistable[3][2] =
-	{
-		{ 1, 2 },
-		{ 2, 0 },
-		{ 0, 1 }
-	};
-
-	v[0][0] = v0[axistable[axis][0]];
-	v[0][1] = v0[axistable[axis][1]];
-	v[1][0] = v1[axistable[axis][0]];
-	v[1][1] = v1[axistable[axis][1]];
-	v[2][0] = v2[axistable[axis][0]];
-	v[2][1] = v2[axistable[axis][1]];
-
-	return Polygon_TriangleArea2D(v[0], v[1], v[2]);
-}
-#endif
 
 

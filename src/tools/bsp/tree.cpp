@@ -71,86 +71,15 @@ static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
 	return (PolygonOnPlaneSide(p, plane) == PLANE_SIDE_ON);
 }
 
-static plane_t PolygonPlaneFromPoints(bsppoly_t *p)
-{
-	plane_t plane;
-	
-	plane.FromPoints(p->polygon->vertices[0], p->polygon->vertices[1], p->polygon->vertices[2]);
-	return plane;
-}
-
-static plane_t PlaneFromArea(bsppoly_t *p)
-{
-	polygon_t *polygon = p->polygon;
-
-	vec3 area = vec3(0, 0, 0);
-	for(int i = 0; i < polygon->numvertices; i++)
-	{
-		int j = (i + 1) % polygon->numvertices;
-		
-		vec3 vi = polygon->vertices[i];
-		vec3 vj = polygon->vertices[j];
-		
-		area[2] += (vi[0] * vj[1]) - (vj[0] * vi[1]);
-		area[0] += (vi[1] * vj[2]) - (vj[1] * vi[2]);
-		area[1] += (vi[2] * vj[0]) - (vj[2] * vi[0]);
-	}
-	
-	area = Normalize(area);
-	
-	plane_t plane;
-	plane.a = area[0];
-	plane.b = area[1];
-	plane.c = area[2];
-	plane.d = -Dot(polygon->vertices[0], area);
-	
-	return plane;
-}
-	
-static plane_t PolygonAveragePlane(bsppoly_t *p)
-{
-	polygon_t *polygon = p->polygon;
-	
-	vec3 normal = vec3(0, 0, 0);
-	float distance = 0.0f;
-	int numtriangles = polygon->numvertices - 2;
-	for(int i = 0; i < numtriangles; i++)
-	{
-		vec3 s = polygon->vertices[i + 1] - polygon->vertices[0];
-		vec3 t = polygon->vertices[i + 2] - polygon->vertices[i + 1];
-		vec3 cross = Cross(s, t);
-		
-		cross = Normalize(cross);
-		normal = normal + cross;	// fixme: cant use += ?
-		
-		distance += -Dot(cross, polygon->vertices[0]);
-	}
-	
-	normal = (1.0f / numtriangles) * normal;
-	distance = (1.0f / numtriangles) * distance;
-	
-	return plane_t(normal.x, normal.y, normal.z, distance);
-}
-
-// fixme: should the polygon class do this?
-// fixme: bug: There's a problem with the Polygon_PlaneFromPoints. All of the points must lie
-// in the plane otherwise the rescursion may not terminate. For the moment calculate the average normal
-// and then check. The 'proper' way might be to use projected areas?
 static plane_t PolygonPlane(bsppoly_t *p)
 {
-	plane_t plane;
+	plane_t plane = Polygon_Plane(p->polygon);
 	
-	plane = PolygonAveragePlane(p);
-	//plane_t plane2  = PlaneFromArea(p);
-	
-	plane  = PlaneFromArea(p);
-	
-	if(!CheckPolygonOnPlane(p, plane))
+	if (PolygonOnPlaneSide(p, plane) != PLANE_SIDE_ON)
 		Error("Polygon doesn't lie on calculated plane\n");
 	
 	return plane;
 }
-
 
 static void SplitPolygon(plane_t plane, bsppoly_t *p, bsppoly_t **f, bsppoly_t **b)
 {
@@ -159,31 +88,19 @@ static void SplitPolygon(plane_t plane, bsppoly_t *p, bsppoly_t **f, bsppoly_t *
 	*f = *b = NULL;
 	
 	// split the polygon
-	{
-		Polygon_SplitWithPlane(p->polygon, plane, epsilon, &ff, &bb);
-	}
+	Polygon_SplitWithPlane(p->polygon, plane, epsilon, &ff, &bb);
 	
 	if (ff)
-	{
 		*f = MallocBSPPoly(ff);
-	
-		// fixme: probably a better way to do this?
-		plane_t inplane = PolygonPlane(p);
-		if (!CheckPolygonOnPlane(*f, inplane))
-			Error("Front polygon doesn't sit on original plane after split\n");
-	}
-	
 	if (bb)
-	{
 		*b = MallocBSPPoly(bb);
-
-		// fixme: probably a better way to do this?
-		plane_t inplane = PolygonPlane(p);
-		if (!CheckPolygonOnPlane(*b, inplane))
-			Error("Back polygon doesn't sit on original plane after split\n");
-	}
+	
+	// check that the split polygon sits in the original's plane
+	if (*f && !CheckPolygonOnPlane(*f, PolygonPlane(p)))
+		Error("Front polygon doesn't sit on original plane after split\n");
+	if (*b && !CheckPolygonOnPlane(*b, PolygonPlane(p)))
+		Error("Back polygon doesn't sit on original plane after split\n");
 }
-
 
 
 // ==============================================
@@ -245,7 +162,6 @@ static bsptree_t *MakeEmptyTree()
 	return tree;
 }
 
-
 static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
 {
 	int score = 0;
@@ -264,7 +180,6 @@ static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
 	
 	return score;
 }
-
 
 static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 {
