@@ -18,19 +18,6 @@ typedef struct bsppoly_s
 // global list of bsp nodes
 static bspnode_t	*bspnodes;
 
-static bspnode_t *AllocNode()
-{
-	bspnode_t *n;
-	
-	n = (bspnode_t*)MallocZeroed(sizeof(bspnode_t));
-	
-	// link the node into the global list
-	n->next = bspnodes;
-	bspnodes = n;
-	
-	return n;
-}
-
 static bsptree_t *MallocTree()
 {
 	return (bsptree_t*)MallocZeroed(sizeof(bsptree_t));
@@ -48,10 +35,14 @@ static bsppoly_t *MallocBSPPoly(polygon_t *polygon)
 
 static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 {
-	bspnode_t *n = AllocNode();
-	
+	bspnode_t *n = (bspnode_t*)MallocZeroed(sizeof(bspnode_t));
+
 	n->parent = parent;
 	n->tree	= tree;
+	
+	// link the node into the global list
+	n->globalnext = bspnodes;
+	bspnodes = n;
 	
 	// link the node into the tree list
 	n->treenext = tree->nodes;
@@ -189,7 +180,7 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 	
 	for(p = list; p; p = p->next)
 	{
-		plane_t plane = PolygonPlane(list);
+		plane_t plane = PolygonPlane(p);
 		int score = CalculateSplitPlaneScore(plane, list);
 	
 		if(!bestscore || score > bestscore)

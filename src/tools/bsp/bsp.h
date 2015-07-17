@@ -27,7 +27,7 @@ typedef struct mapdata_s
 // nodes
 typedef struct bspnode_s
 {
-	struct bspnode_s	*next;
+	struct bspnode_s	*globalnext;
 	struct bspnode_s	*treenext;
 	struct bspnode_s	*leafnext;
 	struct bspnode_s	*parent;
