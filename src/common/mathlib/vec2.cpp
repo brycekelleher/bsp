@@ -172,6 +172,6 @@ vec2 Normalize(vec2 v)
 
 vec2 Skew(vec2 a)
 {
-	return vec2(-a.y, a.x);
+	return vec2(a.y, -a.x);
 }
 
