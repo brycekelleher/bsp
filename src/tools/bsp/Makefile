@@ -1,7 +1,7 @@
 BIN		= bsp
 CC		= clang
-CXX		= clang
-LD		= clang
+CXX		= clang++
+LD		= clang++
 
 CFLAGS		= -g -ggdb -Wall -pedantic
 CXXFLAGS	= -g -ggdb -Wall -pedantic
@@ -18,7 +18,7 @@ CFLAGS 		+= -Wno-unused-function -Wno-unneeded-internal-declaration
 CXXFLAGS 	+= -Wno-unused-function -Wno-unneeded-internal-declaration
 endif
 
-OBJECTS		+= $(MATHLIB)/vec3.o $(MATHLIB)/plane.o $(MATHLIB)/polygon.o
+OBJECTS		+= $(MATHLIB)/vec3.o $(MATHLIB)/box3.o $(MATHLIB)/plane.o $(MATHLIB)/polygon.o
 OBJECTS		+= $(COMMON)/toollib.o
 OBJECTS		+= token.o nodes.o debug.o test.o
 OBJECTS		+= tree.o map.o output.o

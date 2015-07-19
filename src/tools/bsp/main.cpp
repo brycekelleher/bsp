@@ -96,7 +96,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 	}
 
 	// fixme: this is a bit rubbish
-	ReadMapFile(argv[i]);
+	ReadMap(argv[i]);
 }
 
 
@@ -130,10 +130,6 @@ int main(int argc, char *argv[])
 	ProcessCommandLine(argc, argv);
 	
 	TreeTest();
-	
-	extern void TestPolygonForPlane();
-	TestPolygonForPlane();
-
 	
 	DebugShutdown();
 	

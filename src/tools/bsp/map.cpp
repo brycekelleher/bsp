@@ -8,12 +8,11 @@
 static mapdata_t	mapdatalocal;
 mapdata_t		*mapdata = &mapdatalocal;
 
-static mapface_t *MallocMapPolygon(int numvertices)
+static mapface_t *MallocMapPolygon(polygon_t *p)
 {
-	mapface_t *p	= (mapface_t*)MallocZeroed(sizeof(*p));
-	p->polygon	= Polygon_Alloc(numvertices);
+	mapface_t *face	= (mapface_t*)MallocZeroed(sizeof(*face));
 
-	return p;
+	return face;
 }
 
 static void FinalizePolygon()
@@ -41,11 +40,11 @@ static void ReadFloatList(FILE *fp, float *floatlist, int count)
 {
 	float *f = floatlist;
 
-	for(; count; count--)
+	for (; count; count--)
 		*f++ = ReadFloat(fp);
 }
 
-static void ReadPolygonVertex(FILE *fp, mapface_t *p)
+static void ReadPolygonVertex(FILE *fp, polygon_t *p)
 {
 	int index;
 	float x, y, z;
@@ -55,79 +54,127 @@ static void ReadPolygonVertex(FILE *fp, mapface_t *p)
 	y	= ReadFloat(fp);
 	z	= ReadFloat(fp);
 
-	// fixme: Debug printf
-	//printf("vertex x: %f\n", x);
-	//printf("vertex y: %f\n", y);
-	//printf("vertex z: %f\n", z);
-
 	// fixme: extract the polygon out
 	// fixme: add vertex is useless in this case...
-	p->polygon->vertices[index].x	= x;
-	p->polygon->vertices[index].y	= y;
-	p->polygon->vertices[index].z	= z;
-	p->polygon->numvertices++;
+	p->vertices[index].x	= x;
+	p->vertices[index].y	= y;
+	p->vertices[index].z	= z;
+	p->numvertices++;
 }
 
-static void ReadPolygon(FILE *fp)
+static polygon_t *ReadPolygon(FILE *fp)
 {
-	mapface_t *p = MallocMapPolygon(32);
-
-	while(1)
+	polygon_t *p = NULL;
+	
+	while (1)
 	{
 		char *token = ReadToken(fp);
 
-		if(!strcmp(token, "numvertices"))
+		if (!strcmp(token, "numvertices"))
 		{
+			int numvertices = ReadInt(fp);
+			p = Polygon_Alloc(numvertices);
+
 			ReadInt(fp);
 		}
-		else if(!strcmp(token, "vertex"))
+		else if (!strcmp(token, "vertex"))
 		{
+			if (!p)
+				p = Polygon_Alloc(32);
+
 			ReadPolygonVertex(fp, p);
 		}
-		else if(!strcmp(token, "}"))
+		else if (!strcmp(token, "{"))
 		{
-			// fixme:
-			{
-				p->next = mapdata->faces;
-				mapdata->faces = p;
-				// These can all go under FinalizePolygon/FinishPolygon?
-				// CalculateNormal()
-				
-				// CheckPlanar()
-				
-				// AddToMap()
-				
-				//DebugWritePolygon(p->polygon);
-				DebugWriteWireFillPolygon(debugfp, p->polygon);
-			}
-			break;
+			continue;
+		}
+		else if (!strcmp(token, "}"))
+		{
+			return p;
+		}
+		else
+		{
+			Error("Uknown token \"%s\" when reading polygon\n", token);
 		}
 	}
 }
 
-static FILE *OpenMapFile(char * filename)
+static void ReadMapFace(FILE *fp)
 {
-	FILE *fp;
-
-	fp = fopen(filename, "r");
-	if(!fp)
-		Error("Failed to open file \"%s\"\n", filename);
-
-	return fp;
+	// These can all go under FinalizePolygon/FinishPolygon?
+	// CalculateNormal()
+	
+	// CheckPlanar()
+	
+	// AddToMap()
+	
+	polygon_t *p = ReadPolygon(fp);
+	
+	mapface_t *face = MallocMapPolygon(p);
+	face->polygon	= p;
+	face->plane	= Polygon_Plane(p);
+	face->box	= Polygon_BoundingBox(p);
+	face->areahint	= false;
+	
+	// link the face into the map list
+	face->next = mapdata->faces;
+	mapdata->faces = face;
+	
+	mapdata->numfaces++;
+	
+	DebugWriteWireFillPolygon(debugfp, face->polygon);
 }
 
-void ReadMapFile(char *filename)
+static void ReadAreaHint(FILE *fp)
+{
+	polygon_t *p = ReadPolygon(fp);
+	
+	mapface_t *face = MallocMapPolygon(p);
+	face->polygon	= p;
+	face->plane	= Polygon_Plane(p);
+	face->box	= Polygon_BoundingBox(p);
+	face->areahint	= true;
+
+	
+	// link the face into the map list
+	face->next = mapdata->faces;
+	mapdata->faces = face;
+	
+	mapdata->numareahints++;
+}
+
+void ReadMapFile(FILE *fp)
+{
+	char *token;
+	
+	while ((token = ReadToken(fp)))
+	{
+		if (!strcmp(token, "polygon"))
+		{
+			ReadMapFace(fp);
+		}
+		else if (!strcmp(token, "areahint"))
+		{
+			ReadAreaHint(fp);
+		}
+		else
+		{
+			Error("Unknown token \"%s\"\n", token);
+		}
+	}
+	
+	Message("%i faces\n", mapdata->numfaces);
+	Message("%i areahints\n", mapdata->numareahints);
+}
+
+void ReadMap(char *filename)
 {
 	FILE *fp;
-	char* token;
 
-	Message("Processing %s...\n", filename);
+	Message("Reading map \"%s\"\n", filename);
+	
 	fp = FileOpenTextRead(filename);
 
-	while((token = ReadToken(fp)))
-	{
-		if(!strcmp(token, "polygon"))
-			ReadPolygon(fp);
-	}
+	ReadMapFile(fp);
 }
 

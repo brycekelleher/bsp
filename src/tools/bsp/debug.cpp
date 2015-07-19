@@ -52,3 +52,43 @@ void DebugShutdown()
 {
 	fclose(debugfp);
 }
+
+vec3 Center(box3 box)
+{
+	return 0.5f * (box.min + box.max);
+}
+
+void DebugWritePortalFile(bsptree_t *tree)
+{
+	FILE *fp = FileOpenTextWrite("portal_debug.gld");
+	
+	// iterate through all leafs
+	for (bspnode_t *l = tree->leafs; l; l = l->leafnext)
+	{
+		for (portal_t *p = l->portals; p; p = p->leafnext)
+		{
+			//DebugWriteWireFillPolygon(fp, p->polygon);
+			vec3 center = Center(l->box);
+			
+			fprintf(fp, "color 1 0 0 1\n");
+			fprintf(fp, "polyline\n");
+			fprintf(fp, "%i\n", p->polygon->numvertices + 1);
+			
+			for(int i = 0; i < p->polygon->numvertices + 1; i++)
+			{
+				vec3 v =
+				center + (0.95f * (p->polygon->vertices[i % p->polygon->numvertices] - center));
+		
+				
+				fprintf(fp, "%f %f %f\n",
+					v[0],
+					v[1],
+					v[2]);
+			}
+		}
+	}
+	
+	fclose(fp);
+	// write portal data to file
+}
+

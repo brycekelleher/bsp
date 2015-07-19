@@ -1,18 +1,13 @@
 #include "bsp.h"
 
-static void EmitBytes(void *data, int numbytes, FILE *fp)
-{
-	fwrite(data, numbytes, 1, fp);
-}
-
 static void EmitInt(int i, FILE* fp)
 {
-	EmitBytes(&i, sizeof(int), fp);
+	WriteBytes(&i, sizeof(int), fp);
 }
 
 static void EmitFloat(float f, FILE *fp)
 {
-	EmitBytes(&f, sizeof(float), fp);
+	WriteBytes(&f, sizeof(float), fp);
 }
 
 // emit nodes in postorder (leaves at start of file)
@@ -42,6 +37,13 @@ static int EmitNode(bspnode_t *n, FILE *fp)
 		EmitFloat(n->plane.b, fp);
 		EmitFloat(n->plane.c, fp);
 		EmitFloat(n->plane.d, fp);
+		
+		EmitFloat(n->box.min[0], fp);
+		EmitFloat(n->box.min[1], fp);
+		EmitFloat(n->box.min[2], fp);
+		EmitFloat(n->box.max[0], fp);
+		EmitFloat(n->box.max[1], fp);
+		EmitFloat(n->box.max[2], fp);
 #endif
 	}
 	

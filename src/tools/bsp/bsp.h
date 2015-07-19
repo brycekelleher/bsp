@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "vec3.h"
+#include "box3.h"
 #include "plane.h"
 #include "polygon.h"
 
@@ -13,7 +14,9 @@ typedef struct mapface_s
 {
 	struct mapface_s	*next;
 	polygon_t		*polygon;
-	vec3			normal;
+	plane_t			plane;
+	box3			box;
+	bool			areahint;
 	
 } mapface_t;
 
@@ -21,8 +24,20 @@ typedef struct mapdata_s
 {
 	struct mapface_s	*faces;
 	int			numfaces;
+	int			numareahints;
 	
 } mapdata_t;
+
+typedef struct portal_s
+{
+	struct portal_s		*globalnext;
+	struct portal_s		*leafnext;
+	struct bspnode_s	*srcleaf;
+	struct bspnode_s	*dstleaf;
+	
+	polygon_t		*polygon;
+
+} portal_t;
 
 // nodes
 typedef struct bspnode_s
@@ -36,6 +51,12 @@ typedef struct bspnode_s
 	
 	// the node split plane
 	plane_t			plane;
+	
+	// the node bounding box
+	box3			box;
+
+	// portals if this node is a leaf
+	struct portal_s		*portals;
 	
 } bspnode_t;
 
@@ -69,6 +90,8 @@ int FileSize(FILE *fp);
 void FileClose(FILE *fp);
 void WriteFile(const char *filename, void *data, int numbytes);
 int ReadFile(const char* filename, void **data);
+void WriteBytes(void *data, int numbytes, FILE *fp);
+int ReadBytes(void *buf, int numbytes, FILE *fp);
 
 // debug.cpp
 extern FILE *debugfp;
@@ -77,6 +100,7 @@ void DebugWritePolygon(FILE *fp, polygon_t *p);
 void DebugWriteWireFillPolygon(FILE *fp, polygon_t *p);
 void DebugInit();
 void DebugShutdown();
+void DebugWritePortalFile(bsptree_t *tree);
 
 // main
 void *Malloc(int numbytes);
@@ -86,7 +110,7 @@ void *MallocZeroed(int numbytes);
 char* ReadToken(FILE *fp);
 
 // map file
-void ReadMapFile(char *filename);
+void ReadMap(char *filename);
 
 // bsp tree
 bsptree_t *BuildTree();
