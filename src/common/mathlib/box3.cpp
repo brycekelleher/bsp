@@ -1,36 +1,20 @@
 #include <float.h>
 #include "vec3.h"
-
-
-class box3
-{
-public:	
-	vec3	min;
-	vec3	max;
-
-	box3();
-	~box3();
-
-	void Clear();
-	bool InsideOut();
-	void AddPoint(vec3 p);
-	void AddBox(box3 b);
-	void Expand(float d);
-	bool ContainsPoints(vec3 p);
-	bool IntersectsBox(box3 b);
-	void FromPoints(vec3 *points, int numpoints);
-};
+#include "plane.h"
+#include "box3.h"
 
 box3::box3()
-{}
+{
+	Clear();
+}
 
 box3::~box3()
 {}
 
 void box3::Clear()
 {
-	min = vec3( FLT_MAX,  FLT_MAX,  FLT_MAX);
-	max = vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	min =  vec3::float_max;
+	max = -vec3::float_max;
 }
 
 bool box3::InsideOut()
@@ -56,7 +40,7 @@ void box3::AddBox(box3 b)
 		if (b.min[i] < min[i])
 			min[i] = b.min[i];
 		if (b.min[i] > max[i])
-			max[i] = b.min[i];
+			max[i] = b.max[i];
 	}
 }
 
@@ -96,6 +80,43 @@ bool box3::IntersectsBox(box3 b)
 
 void box3::FromPoints(vec3 *points, int numpoints)
 {
-	for(int i = 0; i < numpoints; i++)
+	for (int i = 0; i < numpoints; i++)
 		AddPoint(points[i]);
+}
+
+vec3 box3::Size()
+{
+	return max - min;
+}
+
+int box3::LargestSide()
+{
+	vec3 v = Size();
+	
+	return LargestComponentIndex(v);
+}
+
+plane_t box3::PlaneForSide(int side)
+{
+	float normals[6][3] =
+	{
+		{ -1,  0,  0 },
+		{  1,  0,  0 },
+		{  0, -1,  0 },
+		{  0,  1,  0 },
+		{  0,  0, -1 },
+		{  0,  0,  1 }
+	};
+	
+	plane_t plane;
+	plane[0] = normals[side][0];
+	plane[1] = normals[side][1];
+	plane[2] = normals[side][2];
+	
+	if((side & 1) == 0)
+		plane[3] = min[side >> 1];
+	else
+		plane[3] = max[side >> 1];
+	
+	return plane;
 }

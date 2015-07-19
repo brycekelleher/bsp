@@ -1,8 +1,19 @@
 #include <math.h>
+#include <float.h>
 #include "vec3.h"
 
 #define		EPSILON_E4	(1e-4)
 #define		EPSILON_E8	(1e-8)
+
+vec3 vec3_zero		= vec3(0.0f, 0.0f, 0.0f);
+vec3 vec3_one		= vec3(1.0f, 0.0f, 0.0f);
+vec3 vec3_float_max	= vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+vec3 vec3_float_min	= vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+
+vec3 vec3::zero		= vec3(0.0f, 0.0f, 0.0f);
+vec3 vec3::one		= vec3(1.0f, 0.0f, 0.0f);
+vec3 vec3::float_max	= vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+vec3 vec3::float_min	= vec3(FLT_MIN, FLT_MIN, FLT_MIN);
 
 vec3::vec3()
 {}
@@ -176,6 +187,31 @@ float Dot(const vec3 a, const vec3 b)
 vec3 Cross(const vec3& a, const vec3& b)
 {
 	return vec3((a.y * b.z) - (a.z * b.y), (a.z * b.x) - (a.x * b.z), (a.x * b.y) - (a.y * b.x));
+}
+
+vec3 Abs(vec3 v)
+{
+	return vec3(fabs(v[0]), fabs(v[1]), fabs(v[2]));
+}
+
+float LargestComponet(vec3 v)
+{
+	if (v[0] > v[1] && v[0] > v[2])
+		return v[0];
+	else if (v[1] > v[2])
+		return v[1];
+	else
+		return v[2];
+}
+
+int LargestComponentIndex(vec3 v)
+{
+	if (v[0] > v[1] && v[0] > v[2])
+		return 0;
+	else if (v[1] > v[2])
+		return 1;
+	else
+		return 2;
 }
 
 vec3 Normalize(vec3 v)

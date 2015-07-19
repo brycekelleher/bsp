@@ -1,12 +1,8 @@
 #ifndef __PLANE_H__
 #define __PLANE_H__
 
-#if 0
-#define PLANE_SIDE_FRONT	0
-#define PLANE_SIDE_BACK		1
-#define PLANE_SIDE_ON		2
-#define PLANE_SIDE_CROSS	3
-#endif
+class vec3;
+class box3;
 
 enum
 {
@@ -15,10 +11,6 @@ enum
 	PLANE_SIDE_ON		= 2,
 	PLANE_SIDE_CROSS	= 3
 };
-
-#define PLANE_DEFAULT_EPSILON	(0.1f)
-
-class vec3;
 
 class plane_t
 {
@@ -45,8 +37,8 @@ public:
 	void FromVecs(vec3 v0, vec3 v1, vec3 p);
 
 	float Distance(vec3& p);
-	int PointOnPlaneSide(vec3& p, float epsilon = 0.1f);
-	int BoxOnPlaneSide(vec3 mins, vec3, float epsilon);
+	int PointOnPlaneSide(vec3& p, float epsilon);
+	int BoxOnPlaneSide(box3 box, float epsilon);
 	bool PlaneLineIntersection(vec3 start, vec3 end, vec3 *hitpoint);
 	bool RayIntersection(vec3 start, vec3 dir, float* fraction);
 	bool IsAxial();

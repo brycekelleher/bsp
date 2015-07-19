@@ -1,53 +1,51 @@
-#ifndef __VEC3_H__
-#define __VEC3_H__
+#ifndef __BOX3_H__
+#define __BOX3_H__
 
-/*-----------------------------------------------------------------------------
-	vec3
------------------------------------------------------------------------------*/
+class vec3;
+class plane_t;
 
-class vec3
+enum
 {
-public:
-	float	x;
-	float	y;
-	float	z;
-			
-	// constructors
-	vec3();
-	vec3(const float x, const float y, const float z);
-
-	operator float*();
-	float operator[](int i) const;
-	float& operator[](int i);
-
-	vec3 operator-() const;
-
-	// functions
-	void Set(const float _x, const float _y, const float _z);
-	void MakeZero();
-	bool IsZero();
-	bool IsNearlyZero();
-	void Normalize();
-	float Length();
-	float LengthSquared();
-	float* Ptr();
-	const float* Ptr() const;
+	BOX_SIDE_X,
+	BOX_SIDE_Y,
+	BOX_SIDE_Z
 };
 
-vec3 operator+(const vec3 a, const vec3 b);
-vec3 operator-(const vec3 a, const vec3 b);
-vec3 operator*(const vec3 a, const vec3 b);
-vec3 operator/(const vec3 a, const vec3 b);
-vec3 operator*(const float s, const vec3 v);
-vec3 operator*(const vec3 v, const float s);
-vec3 operator/(const vec3 v, const float s);
-bool operator==(const vec3 a, const vec3 b);
-bool operator!=(const vec3 a, const vec3 b);
-float Length(vec3 v);
-float LengthSquared(vec3 v);
-float Dot(const vec3 a, const vec3 b);
-vec3 Cross(const vec3& a, const vec3& b);
-vec3 Normalize(vec3 v);
+enum
+{
+	BOX_SIDE_NEG_X,
+	BOX_SIDE_POS_X,
+	BOX_SIDE_NEG_Y,
+	BOX_SIDE_POS_Y,
+	BOX_SIDE_NEG_Z,
+	BOX_SIDE_POS_Z
+};
+
+/*-----------------------------------------------------------------------------
+	box3
+-----------------------------------------------------------------------------*/
+
+class box3
+{
+public:
+	vec3	min;
+	vec3	max;
+	
+	box3();
+	~box3();
+	
+	void Clear();
+	bool InsideOut();
+	void AddPoint(vec3 p);
+	void AddBox(box3 b);
+	void Expand(float d);
+	bool ContainsPoints(vec3 p);
+	bool IntersectsBox(box3 b);
+	void FromPoints(vec3 *points, int numpoints);
+	vec3 Size();
+	int LargestSide();
+	plane_t PlaneForSide(int side);
+};
 
 #endif
 

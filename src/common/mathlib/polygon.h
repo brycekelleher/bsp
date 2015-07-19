@@ -1,8 +1,12 @@
 #ifndef __POLYGON_H__
 #define __POLYGON_H__
 
-#include "vec3.h"
-#include "plane.h"
+//#include "vec3.h"
+//#include "plane.h"
+
+class vec3;
+class box3;
+class plane_t;
 
 typedef struct polygon_s
 {
@@ -30,7 +34,7 @@ void Polygon_AddVertex(float x, float y, float z);
 polygon_t *Polygon_Reverse(polygon_t* p);
 
 // returns the polygon bounding box
-void Polygon_BoundingBox(polygon_t* p, vec3* bmin, vec3* bmax);
+box3 Polygon_BoundingBox(polygon_t* p);
 
 // returns the centroid of the polygon
 vec3 Polygon_Centroid(polygon_t* p);
@@ -48,7 +52,11 @@ vec3 Polygon_Normal(polygon_t* p);
 // returns the plane that the polygon lies in
 plane_t Polygon_Plane(polygon_t *p);
 
+// split the polygon with plane returning the front and back pieces if they exist
 void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon_t **front, polygon_t **back);
+
+// clip the polygon with the plane returning the front piece if it exists
+polygon_t *Polygon_ClipWithPlane(polygon_t *p, plane_t plane, float epsilon);
 
 // return which side of the plane the polygon is on
 int Polygon_OnPlaneSide(polygon_t *p, plane_t plane, float epsilon);

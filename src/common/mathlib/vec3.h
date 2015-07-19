@@ -32,6 +32,12 @@ public:
 	float LengthSquared();
 	float* Ptr();
 	const float* Ptr() const;
+	
+	// static constants
+	static vec3 zero;
+	static vec3 one;
+	static vec3 float_max;
+	static vec3 float_min;
 };
 
 vec3 operator+(const vec3 a, const vec3 b);
@@ -48,6 +54,14 @@ float LengthSquared(vec3 v);
 float Dot(const vec3 a, const vec3 b);
 vec3 Cross(const vec3& a, const vec3& b);
 vec3 Normalize(vec3 v);
+vec3 Abs(vec3 v);
+float LargestComponet(vec3 v);
+int LargestComponentIndex(vec3 v);
+
+extern vec3 vec3_zero;
+extern vec3 vec3_one;
+extern vec3 vec3_float_max;
+extern vec3 vec3_float_min;
 
 #endif
 

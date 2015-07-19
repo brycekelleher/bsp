@@ -3,6 +3,8 @@
 #include <memory.h>
 #include <math.h>
 #include "vec3.h"
+#include "box3.h"
+#include "plane.h"
 #include "polygon.h"
 
 static int PointOnPlaneSide(vec3 p, plane_t plane, float epsilon)
@@ -92,23 +94,14 @@ polygon_t *Polygon_Reverse(polygon_t* p)
 	return r;
 }
 
-void Polygon_BoundingBox(polygon_t* p, vec3* bmin, vec3* bmax)
+box3 Polygon_BoundingBox(polygon_t* p)
 {
-	*bmin = vec3( 1e20f,  1e20f,  1e20f);
-	*bmax = vec3(-1e20f, -1e20f, -1e20f);
-
+	box3 box;
+	
 	for (int i = 0; i < p->numvertices; i++)
-	{
-		vec3 *v = p->vertices + i;
-
-		for (int j = 0; j < 3; j++)
-		{
-			if (v[j] < bmin[j])
-				bmin[j] = v[j];
-			if (v[j] > bmax[j])
-				bmax[j] = v[j];
-		}
-	}
+		box.AddPoint(p->vertices[i]);
+	
+	return box;
 }
 
 vec3 Polygon_Centroid(polygon_t* p)
@@ -355,7 +348,7 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 				dist1 = Distance(plane, p1);
 				dist2 = Distance(plane, p2);
 				dot = dist1 / (dist1 - dist2);
-				mid[j] = p1[j] + dot * (p2[j] - p1[j]);
+				mid[j] = ((1.0f - dot) * p1[j]) + (dot * p2[j]);
 			}
 		}
 			
@@ -374,6 +367,23 @@ void Polygon_SplitWithPlane(polygon_t *in, plane_t plane, float epsilon, polygon
 	{
 		assert(0);
 	}
+}
+
+polygon_t *Polygon_ClipWithPlane(polygon_t *p, plane_t plane, float epsilon)
+{
+	polygon_t *f, *b;
+	
+	// split the polygon
+	Polygon_SplitWithPlane(p, plane, epsilon, &f, &b);
+	
+	// free the original polygon
+	Polygon_Free(p);
+	
+	// free the backside polygon if it exists
+	if(b)
+		Polygon_Free(b);
+	
+	return f;
 }
 
 // Classify where a polygon is with respect to a plane
