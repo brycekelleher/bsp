@@ -84,6 +84,11 @@ void box3::FromPoints(vec3 *points, int numpoints)
 		AddPoint(points[i]);
 }
 
+vec3 box3::Center()
+{
+	return 0.5f * (min + max);
+}
+
 vec3 box3::Size()
 {
 	return max - min;

@@ -42,6 +42,7 @@ public:
 	bool ContainsPoints(vec3 p);
 	bool IntersectsBox(box3 b);
 	void FromPoints(vec3 *points, int numpoints);
+	vec3 Center();
 	vec3 Size();
 	int LargestSide();
 	plane_t PlaneForSide(int side);
