@@ -121,33 +121,8 @@ void WriteBytes(void *data, int numbytes, FILE *fp)
 	fwrite(data, numbytes, 1, fp);
 }
 
-void WriteInt(int i, FILE* fp)
-{
-	WriteBytes(&i, sizeof(int), fp);
-}
-
-void WriteFloat(float f, FILE *fp)
-{
-	WriteBytes(&f, sizeof(float), fp);
-}
-
 int ReadBytes(void *buf, int numbytes, FILE *fp)
 {
 	return fread(buf, sizeof(unsigned char), numbytes, fp);
 }
 
-int ReadInt(FILE *fp)
-{
-	int i;
-	
-	ReadBytes(&i, sizeof(int), fp);
-	return i;
-}
-
-float ReadFloat(FILE *fp)
-{
-	float f;
-	
-	ReadBytes(&f, sizeof(float), fp);
-	return f;
-}
