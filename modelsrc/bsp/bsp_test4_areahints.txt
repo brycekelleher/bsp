@@ -1,0 +1,112 @@
+areahint
+{
+vertex 0 -50.0 50.0 0.0
+vertex 1 -50.0 50.0 -100.0
+vertex 2 50.0 50.0 -100.0
+vertex 3 50.0 50.0 0.0
+}
+areahint
+{
+vertex 0 50.0 -50.0 0.0
+vertex 1 50.0 -50.0 -100.0
+vertex 2 -50.0 -50.0 -100.0
+vertex 3 -50.0 -50.0 0.0
+}
+polygon
+{
+vertex 0 -50.0 -50.0 -100.0
+vertex 1 50.0 -50.0 -100.0
+vertex 2 50.0 50.0 -100.0
+vertex 3 -50.0 50.0 -100.0
+}
+polygon
+{
+vertex 0 -100.0 -100.0 200.0
+vertex 1 -100.0 100.0 200.0
+vertex 2 100.0 100.0 200.0
+vertex 3 100.0 -100.0 200.0
+}
+polygon
+{
+vertex 0 -50.0 -50.0 0.0
+vertex 1 -100.0 -100.0 100.0
+vertex 2 100.0 -100.0 100.0
+vertex 3 50.0 -50.0 0.0
+}
+polygon
+{
+vertex 0 50.0 -50.0 0.0
+vertex 1 100.0 -100.0 100.0
+vertex 2 100.0 100.0 100.0
+vertex 3 50.0 50.0 0.0
+}
+polygon
+{
+vertex 0 50.0 50.0 0.0
+vertex 1 100.0 100.0 100.0
+vertex 2 -100.0 100.0 100.0
+vertex 3 -50.0 50.0 0.0
+}
+polygon
+{
+vertex 0 -50.0 50.0 0.0
+vertex 1 -100.0 100.0 100.0
+vertex 2 -100.0 -100.0 100.0
+vertex 3 -50.0 -50.0 0.0
+}
+polygon
+{
+vertex 0 -100.0 -100.0 100.0
+vertex 1 -100.0 -100.0 200.0
+vertex 2 100.0 -100.0 200.0
+vertex 3 100.0 -100.0 100.0
+}
+polygon
+{
+vertex 0 100.0 -100.0 100.0
+vertex 1 100.0 -100.0 200.0
+vertex 2 100.0 100.0 200.0
+vertex 3 100.0 100.0 100.0
+}
+polygon
+{
+vertex 0 100.0 100.0 100.0
+vertex 1 100.0 100.0 200.0
+vertex 2 -100.0 100.0 200.0
+vertex 3 -100.0 100.0 100.0
+}
+polygon
+{
+vertex 0 -100.0 100.0 100.0
+vertex 1 -100.0 100.0 200.0
+vertex 2 -100.0 -100.0 200.0
+vertex 3 -100.0 -100.0 100.0
+}
+polygon
+{
+vertex 0 -50.0 -50.0 0.0
+vertex 1 -50.0 -50.0 -100.0
+vertex 2 -50.0 50.0 -100.0
+vertex 3 -50.0 50.0 0.0
+}
+polygon
+{
+vertex 0 -50.0 50.0 0.0
+vertex 1 -50.0 50.0 -100.0
+vertex 2 50.0 50.0 -100.0
+vertex 3 50.0 50.0 0.0
+}
+polygon
+{
+vertex 0 50.0 50.0 0.0
+vertex 1 50.0 50.0 -100.0
+vertex 2 50.0 -50.0 -100.0
+vertex 3 50.0 -50.0 0.0
+}
+polygon
+{
+vertex 0 50.0 -50.0 0.0
+vertex 1 50.0 -50.0 -100.0
+vertex 2 -50.0 -50.0 -100.0
+vertex 3 -50.0 -50.0 0.0
+}
