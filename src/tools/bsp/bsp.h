@@ -58,6 +58,8 @@ typedef struct bspnode_s
 	// portals if this node is a leaf
 	struct portal_s		*portals;
 	
+	bool			empty;
+	
 } bspnode_t;
 
 // tree

@@ -52,6 +52,8 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 	tree->nodes = n;
 	tree->numnodes++;
 	
+	n->empty = false;
+	
 	return n;
 }
 
@@ -145,15 +147,30 @@ static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t *
 	Polygon_SplitWithPlane(p->polygon, plane, epsilon, &ff, &bb);
 	
 	if (ff)
+	{
 		*f = MallocBSPPoly(ff);
+		(*f)->plane	= p->plane;
+		(*f)->box	= p->box;
+		(*f)->areahint	= p->areahint;
+	}
 	if (bb)
+	{
 		*b = MallocBSPPoly(bb);
+		(*b)->plane	= p->plane;
+		(*b)->box	= p->box;
+		(*b)->areahint	= p->areahint;
+	}
 	
 	// check that the split polygon sits in the original's plane
 	if (*f && !CheckPolygonOnPlane(*f, PolygonPlane(p)))
 		Error("Front polygon doesn't sit on original plane after split\n");
 	if (*b && !CheckPolygonOnPlane(*b, PolygonPlane(p)))
 		Error("Back polygon doesn't sit on original plane after split\n");
+	
+	if(ff && ff->numvertices == 3)
+		printf("");
+	if(bb && bb->numvertices == 3)
+		printf("");
 }
 
 // this reverses the order of the list...
@@ -202,16 +219,16 @@ static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
 {
 	int score = 0;
 	
+	// favour planes which are axial
+	if(plane.IsAxial())
+		score += 50;
+	
 	for(; list; list = list->next)
 	{
 		// favour polygons that don't cause splits
 		int side = PolygonOnPlaneSide(list, plane);
-		if(side != PLANE_SIDE_CROSS)
-			score += 5;
-		
-		// favour planes which are axial
-		if(plane.IsAxial())
-			score += 2;
+		if(side == PLANE_SIDE_CROSS)
+			score += -5;
 	}
 	
 	return score;
@@ -226,10 +243,10 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 	// check the node area
 	// fixme:
 
-#if 0
+#if 1
 	// check the area portals
 	{
-		bestscore = 0;
+		bestscore = -9999999;
 		for (p = list; p; p = p->next)
 		{
 			// filter everything that is not an areahint
@@ -239,21 +256,21 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 			plane_t plane = PolygonPlane(p);
 			int score = CalculateSplitPlaneScore(plane, list);
 		
-			if(!bestscore || score > bestscore)
+			if(score > bestscore)
 			{
 				bestscore	= score;
 				bestplane	= plane;
 			}
 		}
 
-		if(bestscore)
+		if(bestscore != -9999999)
 			return bestplane;
 	}
 #endif
 	
 	// check the structural polygons
 	{
-		bestscore = 0;
+		bestscore = -9999999;
 		for (p = list; p; p = p->next)
 		{
 			// filter areahint polygons
@@ -263,7 +280,7 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 			plane_t plane = PolygonPlane(p);
 			int score = CalculateSplitPlaneScore(plane, list);
 		
-			if(!bestscore || score > bestscore)
+			if(score > bestscore)
 			{
 				bestscore	= score;
 				bestplane	= plane;
@@ -348,6 +365,10 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 		// link node into the leaf list
 		node->leafnext = tree->leafs;
 		tree->leafs = node;
+	
+		// if this on the front side of the parent assume it's empty
+		if(node == node->parent->children[0])
+			node->empty = true;
 		
 		tree->numleafs++;
 		return;

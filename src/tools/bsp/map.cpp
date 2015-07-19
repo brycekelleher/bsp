@@ -110,6 +110,9 @@ static void ReadMapFace(FILE *fp)
 	
 	polygon_t *p = ReadPolygon(fp);
 	
+	if (Polygon_Area(p) < 0.1f)
+		Error("Polygon has degenerate area\n");
+	
 	mapface_t *face = MallocMapPolygon(p);
 	face->polygon	= p;
 	face->plane	= Polygon_Plane(p);
