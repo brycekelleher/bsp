@@ -55,7 +55,7 @@ void box3::Expand(float d)
 	max[2]	+= d;
 }
 
-bool box3::ContainsPoints(vec3 p)
+bool box3::ContainsPoint(vec3 p)
 {
 	if ((p[0] >= min[0] && p[0] <= max[0]) &&
 	    (p[1] >= min[1] && p[1] <= max[1]) &&
@@ -70,7 +70,8 @@ bool box3::ContainsPoints(vec3 p)
 bool box3::IntersectsBox(box3 b)
 {
 	if ((b.min[0] < max[0] || b.max[0] > min[0]) &&
-	    (b.min[1] < max[1] || b.max[1] > min[1]))
+	    (b.min[1] < max[1] || b.max[1] > min[1]) &&
+	    (b.min[2] < max[2] || b.max[2] > min[2]))
 	{
 		return true;
 	}

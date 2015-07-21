@@ -194,7 +194,7 @@ vec3 Abs(vec3 v)
 	return vec3(fabs(v[0]), fabs(v[1]), fabs(v[2]));
 }
 
-float LargestComponet(vec3 v)
+float LargestComponent(vec3 v)
 {
 	if (v[0] > v[1] && v[0] > v[2])
 		return v[0];

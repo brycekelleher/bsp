@@ -39,7 +39,7 @@ public:
 	void AddPoint(vec3 p);
 	void AddBox(box3 b);
 	void Expand(float d);
-	bool ContainsPoints(vec3 p);
+	bool ContainsPoint(vec3 p);
 	bool IntersectsBox(box3 b);
 	void FromPoints(vec3 *points, int numpoints);
 	vec3 Center();
