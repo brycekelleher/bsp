@@ -1,5 +1,6 @@
 #include <math.h>
 #include "vec3.h"
+#include "box3.h"
 #include "plane.h"
 
 plane_t::plane_t()
@@ -84,7 +85,7 @@ int plane_t::PointOnPlaneSide(vec3& p, const float epsilon)
 	return PLANE_SIDE_ON;
 }
 
-int plane_t::BoxOnPlaneSide(vec3 min, vec3 max, float epsilon)
+int plane_t::BoxOnPlaneSide(box3 box, float epsilon)
 {
 	vec3	corners[2];
 	float	dists[2];
@@ -95,13 +96,13 @@ int plane_t::BoxOnPlaneSide(vec3 min, vec3 max, float epsilon)
 		
 		if (normal[i] < 0)
 		{
-			corners[0][i] = min[i];
-			corners[1][i] = max[i];
+			corners[0][i] = box.min[i];
+			corners[1][i] = box.max[i];
 		}
 		else
 		{
-			corners[1][i] = min[i];
-			corners[0][i] = max[i];
+			corners[1][i] = box.min[i];
+			corners[0][i] = box.max[i];
 		}
 	}
 	
