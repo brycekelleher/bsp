@@ -79,6 +79,16 @@ static void DecodeNode(int nodenum, FILE *fp)
 	d = ReadFloat(fp);
 	printf("plane: %f, %f, %f, %f\n", a, b, c, d);
 
+	float min[3], max[3];
+	min[0] = ReadFloat(fp);
+	min[1] = ReadFloat(fp);
+	min[2] = ReadFloat(fp);
+	max[0] = ReadFloat(fp);
+	max[1] = ReadFloat(fp);
+	max[2] = ReadFloat(fp);
+	printf("boxmin: %f, %f, %f\n", min[0], min[1], min[2]);
+	printf("boxmax: %f, %f, %f\n", max[0], max[1], max[2]);
+
 	DecodeNode(childnum[0], fp);
 	DecodeNode(childnum[1], fp);
 }
