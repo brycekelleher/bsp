@@ -111,27 +111,14 @@ polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	p->vertices[1] = xyz + (usize * u) - (vsize * v);
 	p->vertices[2] = xyz + (usize * u) + (vsize * v);
 	p->vertices[3] = xyz - (usize * u) + (vsize * v);
-	p->numvertices = 4.0f;
+	p->numvertices = 4;
 	
 	return p;
 }
 
-void TestPolygonForPlane()
-{
-	plane_t plane;
-	
-	vec3 n = Normalize(vec3(0.9f, 0.1f, 0.0f));
-	plane.a = n[0];
-	plane.b = n[1];
-	plane.c = n[2];
-	plane.d = 0;
-
-	PolygonForPlane(plane, 512.0f, 512.0f);
-}
-
 static FILE *portalfp;
 
-FILE *OpenPortalFile(bspnode_t *l)
+static FILE *OpenPortalFile(bspnode_t *l)
 {
 	static char filename[2048];
 	sprintf(filename, "portal_%p.gl", l);
@@ -139,7 +126,7 @@ FILE *OpenPortalFile(bspnode_t *l)
 	return FileOpenTextWrite(filename);
 }
 
-void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf)
+static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf)
 {
 	portal_t *portal;
 	
@@ -158,12 +145,11 @@ void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf)
 	globalportals = portal;
 }
 
-// It's possible for an entire polygon to get clipped away
 // walk up the tree from leaf to root and clip the polygon in place
 // it's possible for an entire polygon to get clipped away if the plane
 // doesn't form the one of the immediate 'bounding planes' - ie it's
 // further up in the tree. If this happens we need to bail out
-polygon_t *ClipPolygonIntoLeaf(polygon_t *p, bspnode_t *leaf)
+static polygon_t *ClipPolygonAgainstLeafIterative(polygon_t *p, bspnode_t *leaf)
 {
 	bspnode_t *prev = leaf;
 	bspnode_t *node = leaf->parent;
@@ -191,12 +177,12 @@ polygon_t *ClipPolygonIntoLeaf(polygon_t *p, bspnode_t *leaf)
 }
 
 // wind up to the root then clip on unwind
-polygon_t *ClipPolygonIntoLeafRecursive(polygon_t *p, bspnode_t *node, bspnode_t *prev)
+static polygon_t *ClipPolygonAgainstLeafRecursive(polygon_t *p, bspnode_t *node, bspnode_t *prev)
 {
 	if (!node)
 		return p;
 	
-	p = ClipPolygonIntoLeafRecursive(p, node->parent, node);
+	p = ClipPolygonAgainstLeafRecursive(p, node->parent, node);
 	
 	// the result of the previous clip might have completely clipped the polygon
 	if (!p)
@@ -215,6 +201,11 @@ polygon_t *ClipPolygonIntoLeafRecursive(polygon_t *p, bspnode_t *node, bspnode_t
 	return Polygon_ClipWithPlane(p, plane, epsilon);
 	
 	return p;
+}
+
+static polygon_t *ClipPolygonAgainstLeaf(polygon_t *p, bspnode_t *leaf)
+{
+	return ClipPolygonAgainstLeafRecursive(p, leaf, NULL);
 }
 
 polygon_t* BuildLeafPolygon(plane_t plane)
@@ -271,7 +262,11 @@ void PushPotalPolygonIntoLeafs(bspnode_t *node, polygon_t *polygon, bspnode_t *s
 	// create a polygons on each of the convex volume sides
 	// push this polygon into the tree and see what leaves it
 	// falls into
-void ProcessLeaf(bspnode_t *root, bspnode_t *leaf)
+
+// It may also work to build a polygon for plane of the leaf, then clip it against every other leaf
+// if a polygon remains after clipping into a plane, then a portal must exist on from that leaf
+// to the other
+static void ProcessLeaf(bspnode_t *root, bspnode_t *leaf)
 {
 	portalfp = OpenPortalFile(leaf);
 	
@@ -283,11 +278,11 @@ void ProcessLeaf(bspnode_t *root, bspnode_t *leaf)
 	// for each leaf face
 	for(int i = 0; i < numplanes; i++)
 	{
-		// create a polygon
+		// create a polygon for the leaf plane
 		polygon_t *polygon = BuildLeafPolygon(planes[i]);
 		
-		//polygon = ClipPolygonIntoLeaf(polygon, leaf);
-		polygon = ClipPolygonIntoLeafRecursive(polygon, leaf, NULL);
+		// clip the polygon against the leaf
+		polygon = ClipPolygonAgainstLeaf(polygon, leaf);
 		
 		if (!polygon)
 			continue;
