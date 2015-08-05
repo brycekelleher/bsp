@@ -10,6 +10,9 @@
 #include "plane.h"
 #include "polygon.h"
 
+extern const float CLIP_EPSILON;
+extern const float MIN_DEGENERATE_AREA;
+
 typedef struct mapface_s
 {
 	struct mapface_s	*next;
@@ -109,7 +112,7 @@ void *Malloc(int numbytes);
 void *MallocZeroed(int numbytes);
 
 // token.cpp
-char* ReadToken(FILE *fp);
+//char* ReadToken(FILE *fp);
 
 // map file
 void ReadMap(char *filename);

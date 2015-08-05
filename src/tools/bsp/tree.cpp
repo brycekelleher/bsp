@@ -5,9 +5,6 @@
 // divide the list
 // recurse on the list until no polygons remain
 
-// at 128 = 1m, 0.02 = 0.15625mm
-const float epsilon = 0.02f;
-
 typedef struct bsppoly_s
 {
 	struct bsppoly_s	*next;
@@ -59,7 +56,7 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 
 static int PolygonOnPlaneSide(bsppoly_t *p, plane_t plane)
 {
-	return Polygon_OnPlaneSide(p->polygon, plane, epsilon);
+	return Polygon_OnPlaneSide(p->polygon, plane, CLIP_EPSILON);
 }
 
 static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
@@ -104,7 +101,7 @@ static void WalkWithBox(bspnode_t *n, box3 box, bspcallback_t callback)
 		return;
 	}
 	
-	int side = n->plane.BoxOnPlaneSide(box, epsilon);
+	int side = n->plane.BoxOnPlaneSide(box, CLIP_EPSILON);
 	
 	if(side == PLANE_SIDE_FRONT)
 		WalkWithBox(n->children[0], box, callback);
@@ -125,7 +122,7 @@ static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)
 		return n;
 	}
 	
-	int side = n->plane.PointOnPlaneSide(p, epsilon);
+	int side = n->plane.PointOnPlaneSide(p, CLIP_EPSILON);
 	
 	if (side == PLANE_SIDE_FRONT || side == PLANE_SIDE_ON)
 		return WalkWithPoint(n->children[0], p);
@@ -144,7 +141,7 @@ static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t *
 	*f = *b = NULL;
 	
 	// split the polygon
-	Polygon_SplitWithPlane(p->polygon, plane, epsilon, &ff, &bb);
+	Polygon_SplitWithPlane(p->polygon, plane, CLIP_EPSILON, &ff, &bb);
 	
 	if (ff)
 	{
@@ -303,7 +300,7 @@ static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sid
 		bsppoly_t *split[2];
 		int i;
 		
-		SplitPolygon(list, plane, epsilon, &split[0], &split[1]);
+		SplitPolygon(list, plane, CLIP_EPSILON, &split[0], &split[1]);
 		
 		// process the front (0) and back (1) splits
 		for(i = 0; i < 2; i++)

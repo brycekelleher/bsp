@@ -2,9 +2,6 @@
 
 static portal_t *globalportals;
 
-// fixme: this should be a constant
-static const float epsilon = 0.02f;
-
 // walk to the root
 void WalkToRoot(bspnode_t *node, bspnode_t *prev)
 {
@@ -157,7 +154,7 @@ static polygon_t *ClipPolygonAgainstLeafIterative(polygon_t *p, bspnode_t *leaf)
 	while (node && p)
 	{
 		// have to special case this as side on will clip the polygon
-		if (Polygon_OnPlaneSide(p, node->plane, epsilon) == PLANE_SIDE_ON)
+		if (Polygon_OnPlaneSide(p, node->plane, CLIP_EPSILON) == PLANE_SIDE_ON)
 			continue;
 		
 		// flip the plane if the previous node was on the back side
@@ -166,7 +163,7 @@ static polygon_t *ClipPolygonAgainstLeafIterative(polygon_t *p, bspnode_t *leaf)
 			plane = -plane;
 		
 		// clip the polygon with the current leaf plane
-		p = Polygon_ClipWithPlane(p, plane, epsilon);
+		p = Polygon_ClipWithPlane(p, plane, CLIP_EPSILON);
 		
 		// walk another level up the tree
 		prev = node;
@@ -189,7 +186,7 @@ static polygon_t *ClipPolygonAgainstLeafRecursive(polygon_t *p, bspnode_t *node,
 		return NULL;
 	
 	// have to special case this as side on will clip the polygon
-	if (Polygon_OnPlaneSide(p, node->plane, epsilon) == PLANE_SIDE_ON)
+	if (Polygon_OnPlaneSide(p, node->plane, CLIP_EPSILON) == PLANE_SIDE_ON)
 		return p;
 	
 	// flip the plane if we followed the back link to get here
@@ -198,7 +195,7 @@ static polygon_t *ClipPolygonAgainstLeafRecursive(polygon_t *p, bspnode_t *node,
 		plane = -plane;
 	
 	// clip the polygon with the current leaf plane
-	return Polygon_ClipWithPlane(p, plane, epsilon);
+	return Polygon_ClipWithPlane(p, plane, CLIP_EPSILON);
 	
 	return p;
 }
@@ -231,7 +228,7 @@ void PushPotalPolygonIntoLeafs(bspnode_t *node, polygon_t *polygon, bspnode_t *s
 		return;
 	}
 	
-	int side = Polygon_OnPlaneSide(polygon, node->plane, epsilon);
+	int side = Polygon_OnPlaneSide(polygon, node->plane, CLIP_EPSILON);
 	
 	if (side == PLANE_SIDE_FRONT)
 	{
@@ -252,7 +249,7 @@ void PushPotalPolygonIntoLeafs(bspnode_t *node, polygon_t *polygon, bspnode_t *s
 	else if (side == PLANE_SIDE_CROSS)
 	{
 		polygon_t *f, *b;
-		Polygon_SplitWithPlane(polygon, node->plane, epsilon, &f, &b);
+		Polygon_SplitWithPlane(polygon, node->plane, CLIP_EPSILON, &f, &b);
 		PushPotalPolygonIntoLeafs(node->children[0], f, srcleaf);
 		PushPotalPolygonIntoLeafs(node->children[1], b, srcleaf);
 	}
