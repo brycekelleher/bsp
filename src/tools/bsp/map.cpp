@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "vec3.h"
 #include "plane.h"
 #include "polygon.h"
@@ -13,6 +14,71 @@ static mapface_t *MallocMapPolygon(polygon_t *p)
 	mapface_t *face	= (mapface_t*)MallocZeroed(sizeof(*face));
 
 	return face;
+}
+
+static int linenum;
+static char buffer[1024];
+
+static char *ReadToken(FILE *fp)
+{
+	int c;
+
+	c = fgetc(fp);
+	for (; c != EOF && isspace(c); c = fgetc(fp))
+		if (c == '\n')
+			linenum++;
+
+	int i = 0;
+	for (; c != EOF && !isspace(c); c = fgetc(fp))
+		buffer[i++] = c;
+
+	buffer[i] = '\0';
+
+	if (i == 0)
+		return NULL;
+
+	return buffer;
+}
+
+static char* PolygonString(polygon_t *p)
+{
+	static char buffer[2048];
+	char *s = buffer;
+
+	s += sprintf(s, "polygon\n");
+
+	for(int i = 0; i < p->numvertices; i++)
+	{
+		s += sprintf(s, "%i (%f %f %f)\n",
+			i,
+			p->vertices[i][0],
+			p->vertices[i][1],
+			p->vertices[i][2]);
+	}
+
+	return buffer;
+}
+
+static void  IsDegenerate(polygon_t *p)
+{
+	// fixme: epsilon value?
+	if (Polygon_Area(p) < 0.1f)
+		Error("(%i) Polygon has degenerate area\n%s", linenum, PolygonString(p));
+}
+
+static void IsPlanar(polygon_t *p)
+{
+	plane_t plane;
+
+	plane = Polygon_Plane(p);
+
+	for (int i = 0; i < p->numvertices; i++)
+	{
+		//if (PointOnPlaneSide(p->vertices[i], p, globalepsilon) != PLANE_SIDE_ON)
+		{
+			Error("(%i) Polygon is non-planar\n%s", linenum, PolygonString(p));
+		}
+	}
 }
 
 static void FinalizePolygon()
@@ -54,8 +120,6 @@ static void ReadPolygonVertex(FILE *fp, polygon_t *p)
 	y	= ReadFloat(fp);
 	z	= ReadFloat(fp);
 
-	// fixme: extract the polygon out
-	// fixme: add vertex is useless in this case...
 	p->vertices[index].x	= x;
 	p->vertices[index].y	= y;
 	p->vertices[index].z	= z;
@@ -94,7 +158,7 @@ static polygon_t *ReadPolygon(FILE *fp)
 		}
 		else
 		{
-			Error("Uknown token \"%s\" when reading polygon\n", token);
+			Error("(%i) Unknown token \"%s\" when reading polygon\n", linenum, token);
 		}
 	}
 }
@@ -110,8 +174,9 @@ static void ReadMapFace(FILE *fp)
 	
 	polygon_t *p = ReadPolygon(fp);
 	
-	if (Polygon_Area(p) < 0.1f)
-		Error("Polygon has degenerate area\n");
+	IsDegenerate(p);
+
+	IsPlanar(p);
 	
 	mapface_t *face = MallocMapPolygon(p);
 	face->polygon	= p;
@@ -162,7 +227,7 @@ void ReadMapFile(FILE *fp)
 		}
 		else
 		{
-			Error("Unknown token \"%s\"\n", token);
+			Error("(%i) Unknown token \"%s\" when reading map\n", linenum, token);
 		}
 	}
 	
