@@ -62,7 +62,7 @@ static char* PolygonString(polygon_t *p)
 static void  IsDegenerate(polygon_t *p)
 {
 	// fixme: epsilon value?
-	if (Polygon_Area(p) < 0.1f)
+	if (Polygon_Area(p) < MIN_DEGENERATE_AREA)
 		Error("(%i) Polygon has degenerate area\n%s", linenum, PolygonString(p));
 }
 
