@@ -50,7 +50,7 @@ void DebugWriteColor(FILE *fp, float *rgb)
 
 void DebugInit()
 {
-	debugfp = FileOpenTextWrite("debug.txt");
+	debugfp = FileOpenTextWrite("debug.gld");
 }
 
 void DebugShutdown()
