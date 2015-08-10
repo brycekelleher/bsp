@@ -2,7 +2,8 @@
 
 // at 128 = 1m, 0.02 = 0.15625mm
 extern const float CLIP_EPSILON		= 0.2f;
-extern const float MIN_DEGENERATE_AREA	= 0.1f;
+extern const float AREA_EPSILON		= 0.1f;
+extern const float PLANAR_EPSILON	= 0.01f;
 
 const char	*outputfilename = "out.bsp";
 static bool	verbose = false;

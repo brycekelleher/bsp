@@ -17,6 +17,7 @@ static mapface_t *MallocMapPolygon(polygon_t *p)
 }
 
 static int linenum;
+static int polygonlinenum;
 static char buffer[1024];
 
 static char *ReadToken(FILE *fp)
@@ -59,26 +60,28 @@ static char* PolygonString(polygon_t *p)
 	return buffer;
 }
 
-static void  IsDegenerate(polygon_t *p)
+static void CheckDegenerate(polygon_t *p)
 {
-	// fixme: epsilon value?
-	if (Polygon_Area(p) < MIN_DEGENERATE_AREA)
-		Error("(%i) Polygon has degenerate area\n%s", linenum, PolygonString(p));
+	if (Polygon_Area(p) < AREA_EPSILON)
+		Error("(%i) Polygon has degenerate area\n%s", polygonlinenum, PolygonString(p));
 }
 
-static void IsPlanar(polygon_t *p)
+static void CheckPlanar(polygon_t *p)
 {
 	plane_t plane;
 
 	plane = Polygon_Plane(p);
 
 	for (int i = 0; i < p->numvertices; i++)
-	{
-		//if (PointOnPlaneSide(p->vertices[i], p, globalepsilon) != PLANE_SIDE_ON)
-		{
-			Error("(%i) Polygon is non-planar\n%s", linenum, PolygonString(p));
-		}
-	}
+		if (PointOnPlaneSide(plane, p->vertices[i], PLANAR_EPSILON) != PLANE_SIDE_ON)
+			Error("(%i) Polygon is non-planar\n%s", polygonlinenum, PolygonString(p));
+}
+
+static void ValidatePolygon(polygon_t *p)
+{
+	CheckDegenerate(p);
+
+	CheckPlanar(p);
 }
 
 static void FinalizePolygon()
@@ -130,6 +133,8 @@ static polygon_t *ReadPolygon(FILE *fp)
 {
 	polygon_t *p = NULL;
 	
+	polygonlinenum = linenum;
+
 	while (1)
 	{
 		char *token = ReadToken(fp);
@@ -154,6 +159,8 @@ static polygon_t *ReadPolygon(FILE *fp)
 		}
 		else if (!strcmp(token, "}"))
 		{
+			ValidatePolygon(p);
+
 			return p;
 		}
 		else
@@ -165,18 +172,7 @@ static polygon_t *ReadPolygon(FILE *fp)
 
 static void ReadMapFace(FILE *fp)
 {
-	// These can all go under FinalizePolygon/FinishPolygon?
-	// CalculateNormal()
-	
-	// CheckPlanar()
-	
-	// AddToMap()
-	
 	polygon_t *p = ReadPolygon(fp);
-	
-	IsDegenerate(p);
-
-	IsPlanar(p);
 	
 	mapface_t *face = MallocMapPolygon(p);
 	face->polygon	= p;
@@ -203,7 +199,6 @@ static void ReadAreaHint(FILE *fp)
 	face->box	= Polygon_BoundingBox(p);
 	face->areahint	= true;
 
-	
 	// link the face into the map list
 	face->next = mapdata->faces;
 	mapdata->faces = face;
@@ -215,7 +210,7 @@ void ReadMapFile(FILE *fp)
 {
 	char *token;
 	
-	while ((token = ReadToken(fp)))
+	while ((token = ReadToken(fp)) != NULL)
 	{
 		if (!strcmp(token, "polygon"))
 		{
@@ -244,5 +239,7 @@ void ReadMap(char *filename)
 	fp = FileOpenTextRead(filename);
 
 	ReadMapFile(fp);
+
+	FileClose(fp);
 }
 

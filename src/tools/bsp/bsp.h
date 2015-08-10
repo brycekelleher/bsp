@@ -11,7 +11,8 @@
 #include "polygon.h"
 
 extern const float CLIP_EPSILON;
-extern const float MIN_DEGENERATE_AREA;
+extern const float AREA_EPSILON;
+extern const float PLANAR_EPSILON;
 
 typedef struct mapface_s
 {
