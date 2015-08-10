@@ -87,6 +87,7 @@ polygon_t *Polygon_Reverse(polygon_t* p)
 	polygon_t	*r;
 
 	r = (polygon_t*)Polygon_Alloc(p->maxvertices);
+	r->numvertices = p->numvertices;
 
 	for (int i = 0; i < p->numvertices; i++)
 		r->vertices[(i + 1) % p->numvertices] = p->vertices[p->numvertices - 1 - i];
