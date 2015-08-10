@@ -117,6 +117,8 @@ static void TreeTest()
 	Message("%i leaves\n", tree->numleafs);
 	Message("%i tree depth\n", tree->depth);
 	
+	MarkEmptyLeafs(tree);
+
 	{
 		void FindPortals(bsptree_t *tree);
 		// fixme: pass in the tree at top-level

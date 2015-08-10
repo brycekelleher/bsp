@@ -362,10 +362,6 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 		// link node into the leaf list
 		node->leafnext = tree->leafs;
 		tree->leafs = node;
-	
-		// if this on the front side of the parent assume it's empty
-		if(node == node->parent->children[0])
-			node->empty = true;
 		
 		tree->numleafs++;
 		return;

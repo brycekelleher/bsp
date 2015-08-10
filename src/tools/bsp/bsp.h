@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "vec3.h"
 #include "box3.h"
@@ -124,6 +125,6 @@ bsptree_t *BuildTree();
 // output functions
 void WriteBinary(bsptree_t *tree);
 
-
-
+// areas
+void MarkEmptyLeafs(bsptree_t *tree);
 
