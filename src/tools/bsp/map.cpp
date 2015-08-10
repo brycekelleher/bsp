@@ -1,9 +1,5 @@
 #include <ctype.h>
-#include "vec3.h"
-#include "plane.h"
-#include "polygon.h"
 #include "bsp.h"
-
 
 // map data
 static mapdata_t	mapdatalocal;
