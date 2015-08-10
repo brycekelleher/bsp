@@ -120,6 +120,8 @@ static void TreeTest()
 	MarkEmptyLeafs(tree);
 
 	BuildPortals(tree);
+
+	BuildAreas(tree);
 	
 	WriteBinary(tree);
 }

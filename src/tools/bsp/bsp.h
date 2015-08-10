@@ -41,17 +41,25 @@ typedef struct portal_s
 	struct bspnode_s	*dstleaf;
 	
 	polygon_t		*polygon;
+	bool			areahint;	
 
 } portal_t;
+
+typedef struct area_s
+{
+	struct bspnode_s	*leafs;
+
+} area_t;
 
 // nodes
 typedef struct bspnode_s
 {
+	struct bspnode_s	*children[2];
+	struct bspnode_s	*parent;
+	struct bspnode_s	*leafnext;
 	struct bspnode_s	*globalnext;
 	struct bspnode_s	*treenext;
-	struct bspnode_s	*leafnext;
-	struct bspnode_s	*parent;
-	struct bspnode_s	*children[2];
+
 	struct bsptree_s	*tree;
 	
 	// the node split plane
@@ -62,7 +70,12 @@ typedef struct bspnode_s
 
 	// portals if this node is a leaf
 	struct portal_s		*portals;
-	
+
+	// areas
+	struct area_s		*area;
+	struct bspnode_s	*areanext;
+
+	// flags
 	bool			empty;
 	
 } bspnode_t;
@@ -127,6 +140,7 @@ void BuildPortals(bsptree_t* tree);
 
 // areas
 void MarkEmptyLeafs(bsptree_t *tree);
+void BuildAreas(bsptree_t *tree);
 
 // output functions
 void WriteBinary(bsptree_t *tree);
