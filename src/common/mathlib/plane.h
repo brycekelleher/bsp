@@ -47,5 +47,7 @@ public:
 };
 
 float Distance(plane_t plane, vec3 x);
+int PointOnPlaneSide(plane_t plane, vec3& p, const float epsilon);
+int BoxOnPlaneSide(plane_t plane, box3 box, float epsilon);
 
 #endif

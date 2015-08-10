@@ -212,4 +212,13 @@ float Distance(plane_t plane, vec3 x)
 	return plane.Distance(x);
 }
 
+int PointOnPlaneSide(plane_t plane, vec3 &p, const float epsilon)
+{
+	return plane.PointOnPlaneSide(p, epsilon);
+}
+
+int BoxOnPlaneSide(plane_t plane, box3 box, float epsilon)
+{
+	return plane.BoxOnPlaneSide(box, epsilon);
+}
 
