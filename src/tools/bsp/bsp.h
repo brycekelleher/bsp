@@ -122,9 +122,13 @@ void ReadMap(char *filename);
 // bsp tree
 bsptree_t *BuildTree();
 
-// output functions
-void WriteBinary(bsptree_t *tree);
+// portals
+void BuildPortals(bsptree_t* tree);
 
 // areas
 void MarkEmptyLeafs(bsptree_t *tree);
+
+// output functions
+void WriteBinary(bsptree_t *tree);
+
 

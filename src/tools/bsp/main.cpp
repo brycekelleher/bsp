@@ -119,15 +119,9 @@ static void TreeTest()
 	
 	MarkEmptyLeafs(tree);
 
-	{
-		void FindPortals(bsptree_t *tree);
-		// fixme: pass in the tree at top-level
-		FindPortals(tree);
-	}
+	BuildPortals(tree);
 	
-	{
-		WriteBinary(tree);
-	}
+	WriteBinary(tree);
 }
 
 int main(int argc, char *argv[])

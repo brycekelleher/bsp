@@ -284,7 +284,7 @@ static void ProcessLeaf(bsptree_t *tree, bspnode_t *leaf)
 	FileClose(portalfp);
 }
 
-void FindPortals(bsptree_t *tree)
+void BuildPortals(bsptree_t *tree)
 {
 	Message("Portalizing tree\n");
 	

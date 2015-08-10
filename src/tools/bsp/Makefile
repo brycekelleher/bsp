@@ -20,12 +20,12 @@ endif
 
 OBJECTS		+= $(MATHLIB)/vec3.o $(MATHLIB)/box3.o $(MATHLIB)/plane.o $(MATHLIB)/polygon.o
 OBJECTS		+= $(COMMON)/toollib.o
-OBJECTS		+= token.o debug.o test.o
-OBJECTS		+= tree.o map.o areas.o output.o
+OBJECTS		+= token.o debug.o
+OBJECTS		+= tree.o map.o portals.o areas.o output.o
 OBJECTS		+= main.o
 
 CFLAGS		+= $(INCLUDES)
-CXXFLAGS		+= $(INCLUDES)
+CXXFLAGS	+= $(INCLUDES)
 
 $(BIN): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $(BIN)
