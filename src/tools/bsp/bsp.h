@@ -129,6 +129,8 @@ void DebugWriteWireFillPolygon(FILE *fp, polygon_t *p);
 void DebugInit();
 void DebugShutdown();
 void DebugWritePortalFile(bsptree_t *tree);
+void DebugWritePortalPolygon(bsptree_t *tree, polygon_t *p);
+void DebugEndLeafPolygons();
 
 // main
 void *Malloc(int numbytes);

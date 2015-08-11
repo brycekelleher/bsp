@@ -86,6 +86,11 @@ static void HSVToRGB(float rgb[3], float h, float s, float v)
 	rgb[2] = b;
 }
 
+// This is a visualisation of the portals that each leaf contains. These are portals which lead
+// from this leaf (srcleaf) to the another leaf (dstleaf). In other words this is what the window
+// that the leaf can see into the other leaf. There may be splits in the portals even though the
+// leaf was not split. This is because the destination leaf(s) volumes have been split across the face
+// of the src leaf portal.
 void DebugWritePortalFile(bsptree_t *tree)
 {
 	FILE *fp = FileOpenTextWrite("portal_debug.gld");
@@ -103,14 +108,18 @@ void DebugWritePortalFile(bsptree_t *tree)
 			//fprintf(fp, "color 1 0 0 1\n");
 			float rgb[3];
 			float f = (float)leafnum / tree->numleafs;
-			f = 4.0f * f;
-			f = f - floor(f);
+			//f = 1.2f * f;
+			//f = f - floor(f);
 			HSVToRGB(rgb, f, 1.0f, 1.0f);
 			fprintf(fp, "color %f %f %f 1\n", rgb[0], rgb[1], rgb[2]);
 		}
 
 		for (portal_t *p = l->portals; p; p = p->leafnext)
 		{
+			// skip portals which cross an empty / solid boundary
+			if (p->srcleaf->empty ^ p->dstleaf->empty)
+				continue;
+
 			fprintf(fp, "polyline\n");
 			fprintf(fp, "%i\n", p->polygon->numvertices + 1);
 			
@@ -147,16 +156,23 @@ void DebugWritePortalFile(bsptree_t *tree)
 	fclose(fp);
 }
 
+// This is a visualisation of the portal source polygons for the leaf before they are pushed into
+// the tree. These polygons will eventually be clipped into other destination leafs, and may be
+// split during the process
 static int leafnum = 0;
 void DebugWritePortalPolygon(bsptree_t *tree, polygon_t *p)
 {
 	static FILE *fp = NULL;
 
-	//if (leafnum != 1)
-	//	return;
+	// guard against a null polygon
+	if (!p)
+		return;
 
 	if (!fp)
 		fp = FileOpenTextWrite("portal_src.gld");
+
+	//if (leafnum != 1)
+	//	return;
 
 	// write the color
 	float rgb[3];

@@ -262,9 +262,15 @@ static void ProcessLeaf(bsptree_t *tree, bspnode_t *leaf)
 		// clip the polygon against the leaf
 		polygon = ClipPolygonAgainstLeaf(polygon, leaf);
 
+		if (leaf->empty)
+			DebugWritePortalPolygon(tree, polygon);
+
 		// push it into the tree and see which leaf it pops into
 		PushPortalIntoTree(tree, polygon, leaf, node->areahint);
 	}
+
+	if (leaf->empty)
+		DebugEndLeafPolygons();
 }
 
 void BuildPortals(bsptree_t *tree)
