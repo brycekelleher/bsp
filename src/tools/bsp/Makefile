@@ -35,5 +35,8 @@ clean:
 	rm -rf test
 	rm -rf bsp
 
+dump_external:
+	nm -g *.o | c++filt | egrep '^.*\.o|^[0-9a-z]+ T' > external_symbols.txt
+
 test: bsp
 	./bsp -o outtest.bsp modelsrc/bsp/bsp_test0.txt

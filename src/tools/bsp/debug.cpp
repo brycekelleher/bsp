@@ -56,7 +56,7 @@ void DebugShutdown()
 	fclose(debugfp);
 }
 
-vec3 Center(box3 box)
+static vec3 Center(box3 box)
 {
 	return 0.5f * (box.min + box.max);
 }

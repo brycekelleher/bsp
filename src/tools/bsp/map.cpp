@@ -222,7 +222,7 @@ static void ReadAreaHint(FILE *fp)
 	DebugWriteWireFillPolygon(debugfp, face->polygon);
 }
 
-void ReadMapFile(FILE *fp)
+static void ReadMapFile(FILE *fp)
 {
 	char *token;
 	

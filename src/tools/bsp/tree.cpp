@@ -317,7 +317,7 @@ static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sid
 	}
 }
 
-box3 ClipNodeBoxWithPlane(box3 box, plane_t plane)
+static box3 ClipNodeBoxWithPlane(box3 box, plane_t plane)
 {
 	box3 clipped;
 
