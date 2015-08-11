@@ -14,6 +14,7 @@
 extern const float CLIP_EPSILON;
 extern const float AREA_EPSILON;
 extern const float PLANAR_EPSILON;
+extern const float MAX_VERTEX_SIZE;
 
 typedef struct mapface_s
 {

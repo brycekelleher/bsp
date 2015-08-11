@@ -97,16 +97,6 @@ polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	return p;
 }
 
-static FILE *portalfp;
-
-static FILE *OpenPortalFile(bspnode_t *l)
-{
-	static char filename[2048];
-	sprintf(filename, "portal_%p.gld", l);
-
-	return FileOpenTextWrite(filename);
-}
-
 static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf)
 {
 	portal_t *portal;
@@ -137,8 +127,7 @@ void PushPortalPolygonIntoLeafsRecursive(bspnode_t *node, polygon_t *polygon, bs
 		// this portal has landed in a leaf node that's not the leaf the source portal came from
 		// this means a connection exists from srcleaf to this node
 		AddPortalToLeaf(srcleaf, polygon, node);
-		
-		DebugWriteWireFillPolygon(portalfp, polygon);
+
 		return;
 	}
 	
@@ -237,7 +226,10 @@ static polygon_t *ClipPolygonAgainstLeaf(polygon_t *p, bspnode_t *leaf)
 
 polygon_t* BuildLeafPolygon(plane_t plane)
 {
-	polygon_t * p = PolygonForPlane(plane, 512.0f, 512.0f);
+	// fixme: these sizes should really be calculated from the tree bounds?
+	float usize = 2 * MAX_VERTEX_SIZE;
+	float vsize = 2 * MAX_VERTEX_SIZE;
+	polygon_t * p = PolygonForPlane(plane, usize, vsize);
 	
 	return p;
 }
@@ -256,32 +248,26 @@ polygon_t* BuildLeafPolygon(plane_t plane)
 // into the leaf, then pushing the polygon into the tree to see which leaves it borders
 static void ProcessLeaf(bsptree_t *tree, bspnode_t *leaf)
 {
-	portalfp = OpenPortalFile(leaf);
-	
 	// iterate all the planes in the leaf
-	{
-		bspnode_t *prev = leaf;
-		bspnode_t *node = leaf->parent;
-		
-		for (; node; prev = node, node = node->parent)
-		{
-			// flip the plane if the previous node was on the back side
-			plane_t plane = node->plane;
-			if (node->children[1] == prev)
-				plane = -plane;
+	bspnode_t *prev = leaf;
+	bspnode_t *node = leaf->parent;
 
-			// create a polygon for the leaf plane
-			polygon_t *polygon = BuildLeafPolygon(plane);
-			
-			// clip the polygon against the leaf
-			polygon = ClipPolygonAgainstLeaf(polygon, leaf);
-			
-			// push it into the tree and see which leaf it pops into
-			PushPortalPolygonIntoLeafs(tree, polygon, leaf);
-		}
+	for (; node; prev = node, node = node->parent)
+	{
+		// flip the plane if the previous node was on the back side
+		plane_t plane = node->plane;
+		if (node->children[1] == prev)
+			plane = -plane;
+
+		// create a polygon for the leaf plane
+		polygon_t *polygon = BuildLeafPolygon(plane);
+
+		// clip the polygon against the leaf
+		polygon = ClipPolygonAgainstLeaf(polygon, leaf);
+
+		// push it into the tree and see which leaf it pops into
+		PushPortalPolygonIntoLeafs(tree, polygon, leaf);
 	}
-	
-	FileClose(portalfp);
 }
 
 void BuildPortals(bsptree_t *tree)

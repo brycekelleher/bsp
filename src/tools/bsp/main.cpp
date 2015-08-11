@@ -4,6 +4,7 @@
 extern const float CLIP_EPSILON		= 0.2f;
 extern const float AREA_EPSILON		= 0.1f;
 extern const float PLANAR_EPSILON	= 0.01f;
+extern const float MAX_VERTEX_SIZE	= 4096.0f;
 
 const char	*outputfilename = "out.bsp";
 static bool	verbose = false;

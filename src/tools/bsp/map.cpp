@@ -56,6 +56,18 @@ static char* PolygonString(polygon_t *p)
 	return buffer;
 }
 
+static void CheckSize(polygon_t *p)
+{
+	for (int i = 0; i < p->numvertices; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			if ((p->vertices[i][j] > MAX_VERTEX_SIZE) || (p->vertices[i][j] < -MAX_VERTEX_SIZE))
+				Error("(%i) Polygon is larger than max size\n%s", polygonlinenum, PolygonString(p));
+		}
+	}
+}
+
 static void CheckDegenerate(polygon_t *p)
 {
 	if (Polygon_Area(p) < AREA_EPSILON)
@@ -75,6 +87,8 @@ static void CheckPlanar(polygon_t *p)
 
 static void ValidatePolygon(polygon_t *p)
 {
+	CheckSize(p);
+
 	CheckDegenerate(p);
 
 	CheckPlanar(p);
