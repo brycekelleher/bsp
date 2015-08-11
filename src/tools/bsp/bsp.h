@@ -123,6 +123,7 @@ int ReadBytes(void *buf, int numbytes, FILE *fp);
 // debug.cpp
 extern FILE *debugfp;
 void DebugPrintfPolygon(FILE *fp, polygon_t *p);
+void DebugWriteColor(FILE *fp, float *rgb);
 void DebugWritePolygon(FILE *fp, polygon_t *p);
 void DebugWriteWireFillPolygon(FILE *fp, polygon_t *p);
 void DebugInit();

@@ -196,6 +196,8 @@ static void ReadMapFace(FILE *fp)
 	
 	mapdata->numfaces++;
 	
+	static float white[3] = { 1, 1, 1 };
+	DebugWriteColor(debugfp, white);
 	DebugWriteWireFillPolygon(debugfp, face->polygon);
 }
 
@@ -214,6 +216,10 @@ static void ReadAreaHint(FILE *fp)
 	mapdata->faces = face;
 	
 	mapdata->numareahints++;
+
+	static float green[3] = { 0, 1, 0 };
+	DebugWriteColor(debugfp, green);
+	DebugWriteWireFillPolygon(debugfp, face->polygon);
 }
 
 void ReadMapFile(FILE *fp)
