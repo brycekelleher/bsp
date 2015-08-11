@@ -48,6 +48,7 @@ typedef struct portal_s
 
 typedef struct area_s
 {
+	struct area_s		*next;
 	struct bspnode_s	*leafs;
 
 } area_t;
@@ -92,6 +93,10 @@ typedef struct bsptree_s
 	bspnode_t	*root;
 	bspnode_t	*leafs;
 	
+	area_t		*areas;
+	int		numemptyareas;
+	int		numareas;
+
 } bsptree_t;
 
 extern const char	*outputfilename;

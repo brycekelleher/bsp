@@ -44,11 +44,6 @@ static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
 	}
 }
 
-area_t *AllocArea()
-{
-	return (area_t*)MallocZeroed(sizeof(area_t));
-}
-
 void MarkEmptyLeafs(bsptree_t *tree)
 {
 	// Iterate all map faces, filter them into the tree
@@ -64,27 +59,45 @@ void MarkEmptyLeafs(bsptree_t *tree)
 	}
 }
 
-// pick the next empty leaf
+// ==============================================
+// Area building code
+
+// pick the next leaf not assigned to an area
 	// if not in an area
 	// create an area
 	// recurse through the portals
 // don't fill across areahints
 // dont' recurse from empty into solid
+
+static area_t *AllocArea(bsptree_t *tree)
+{
+	area_t *a = (area_t*)MallocZeroed(sizeof(area_t));
+
+	// link the area into the tree list
+	a->next = tree->areas;
+	tree->areas = a;
+
+	tree->numareas++;
+
+	return a;
+}
+
 static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 {
 	// link this leaf into the area's list of leaves
-	{
-		area->leafs = leaf;
-		leaf->areanext = area->leafs;
+	area->leafs = leaf;
+	leaf->areanext = area->leafs;
 
-		leaf->area = area;
+	leaf->area = area;
 
-		Message("adding leaf %#p\n", leaf);
-	}
+	if (leaf->empty)
+		leaf->tree->numemptyareas++;
+
+	Message("adding leaf %#p\n", leaf);
 
 	for (portal_t *portal = leaf->portals; portal; portal = portal->leafnext)
 	{
-		// don't flow across solid/empty, leafs already assigned an area or across areahints
+		// don't flow across solid/empty boundaries, leafs already assigned an area or across areahints
 		if (leaf->empty ^ portal->dstleaf->empty)
 			continue;
 		if (portal->dstleaf->area)
@@ -111,7 +124,11 @@ void BuildAreas(bsptree_t *tree)
 		Message("processing leaf %#p\n", leaf);
 
 		// create a new area
-		area_t *area = AllocArea();
+		area_t *area = AllocArea(tree);
 		Walk(area, NULL, leaf);
 	}
+
+	Message("num areas: %d\n", tree->numareas);
+	Message("num empty areas: %d\n", tree->numemptyareas);
 }
+
