@@ -336,7 +336,7 @@ bsptree_t *BuildTree()
 	bsppoly_t	*list;
 	box3		box;
 
-	Message("Building bsp tree...\n");
+	Message("Building bsp tree\n");
 
 	list = MakePolygonList();
 	

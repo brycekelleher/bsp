@@ -12,7 +12,7 @@ static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
 {
 	if (!n->children[0] && !n->children[1])
 	{
-		Message("found empty node %#p\n", n);
+		//Message("found empty node %#p\n", n);
 
 		// this is a leaf node
 		n->empty = true;
@@ -90,7 +90,7 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 
 	leaf->area = area;
 
-	Message("adding leaf %#p\n", leaf);
+	//Message("adding leaf %#p\n", leaf);
 
 	for (portal_t *portal = leaf->portals; portal; portal = portal->leafnext)
 	{
@@ -118,7 +118,7 @@ void BuildAreas(bsptree_t *tree)
 		//if (!leaf->empty)
 		//	continue;
 
-		Message("processing leaf %#p\n", leaf);
+		//Message("processing leaf %#p\n", leaf);
 
 		// create a new area
 		area_t *area = AllocArea(tree);
@@ -129,7 +129,7 @@ void BuildAreas(bsptree_t *tree)
 		Walk(area, NULL, leaf);
 	}
 
-	Message("num areas: %d\n", tree->numareas);
-	Message("num empty areas: %d\n", tree->numemptyareas);
+	Message("%d areas\n", tree->numareas);
+	Message("%d empty areas\n", tree->numemptyareas);
 }
 

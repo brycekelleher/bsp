@@ -59,12 +59,7 @@ void *MallocZeroed(int numbytes)
 
 static void PrintUsage()
 {
-	printf(
-	"<options> <inputfiles ...>\n"
-	"-o <filename>		output filename\n"
-	);
-
-	exit(EXIT_SUCCESS);
+	printf( "[-v] [-o outputfile] file ...\n");
 }
 
 static void ProcessEnvVars()
@@ -78,10 +73,6 @@ static void ProcessModel()
 	Message("Processing model...\n");
 
 	tree = BuildTree();
-	
-	Message("%i nodes\n", tree->numnodes);
-	Message("%i leaves\n", tree->numleafs);
-	Message("%i tree depth\n", tree->depth);
 	
 	MarkEmptyLeafs(tree);
 
@@ -99,7 +90,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 	if(argc == 1)
 	{
 		PrintUsage();
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 
 	for(i = 1; argv[i][0] == '-'; i++)
