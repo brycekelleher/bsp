@@ -3,7 +3,7 @@
 static portal_t *globalportals;
 
 // walk to the root
-void WalkToRoot(bspnode_t *node, bspnode_t *prev)
+static void WalkToRoot(bspnode_t *node, bspnode_t *prev)
 {
 	if (!node)
 		return;
@@ -11,7 +11,7 @@ void WalkToRoot(bspnode_t *node, bspnode_t *prev)
 	WalkToRoot(node->parent, node);
 }
 
-void WalkToRoot2(bspnode_t *node, bspnode_t *prev)
+static void WalkToRoot2(bspnode_t *node, bspnode_t *prev)
 {
 	if (!node)
 		return;
@@ -41,7 +41,7 @@ void PlanesForLeaf(bspnode_t *node)
 #endif
 
 // fixme: this should go into into the vec3 class
-int AbsLargestComponent(vec3 v)
+static int AbsLargestComponent(vec3 v)
 {
 	float x = fabs(v.x);
 	float y = fabs(v.y);
@@ -66,7 +66,7 @@ static float basistab[6][3][3] =
 };
 
 // construct a large polygon along the plane
-polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
+static polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 {
 	vec3	u, v;
 	
@@ -97,7 +97,7 @@ polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	return p;
 }
 
-static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf)
+static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf, bool areahint)
 {
 	portal_t *portal;
 	
@@ -106,6 +106,7 @@ static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *d
 	portal->srcleaf = srcleaf;
 	portal->dstleaf = dstleaf;
 	portal->polygon = polygon;
+	portal->areahint = areahint;
 	
 	// link it into the leaflist
 	portal->leafnext = srcleaf->portals;
@@ -116,7 +117,7 @@ static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *d
 	globalportals = portal;
 }
 
-void PushPortalPolygonIntoLeafsRecursive(bspnode_t *node, polygon_t *polygon, bspnode_t *srcleaf)
+static void PushPortalIntoTreeRecursive(bspnode_t *node, polygon_t *polygon, bspnode_t *srcleaf, bool areahint)
 {
 	if (!node->children[0] && !node->children[1])
 	{
@@ -126,7 +127,7 @@ void PushPortalPolygonIntoLeafsRecursive(bspnode_t *node, polygon_t *polygon, bs
 		
 		// this portal has landed in a leaf node that's not the leaf the source portal came from
 		// this means a connection exists from srcleaf to this node
-		AddPortalToLeaf(srcleaf, polygon, node);
+		AddPortalToLeaf(srcleaf, polygon, node, areahint);
 
 		return;
 	}
@@ -134,37 +135,33 @@ void PushPortalPolygonIntoLeafsRecursive(bspnode_t *node, polygon_t *polygon, bs
 	int side = Polygon_OnPlaneSide(polygon, node->plane, CLIP_EPSILON);
 	
 	if (side == PLANE_SIDE_FRONT)
-	{
-		PushPortalPolygonIntoLeafsRecursive(node->children[0], polygon, srcleaf);
-	}
+		PushPortalIntoTreeRecursive(node->children[0], polygon, srcleaf, areahint);
 	else if (side == PLANE_SIDE_BACK)
-	{
-		PushPortalPolygonIntoLeafsRecursive(node->children[1], polygon, srcleaf);
-	}
+		PushPortalIntoTreeRecursive(node->children[1], polygon, srcleaf, areahint);
 	else if (side == PLANE_SIDE_ON)
 	{
 		polygon_t *f, *b;
 		f = Polygon_Copy(polygon);
 		b = Polygon_Copy(polygon);
-		PushPortalPolygonIntoLeafsRecursive(node->children[0], f, srcleaf);
-		PushPortalPolygonIntoLeafsRecursive(node->children[1], b, srcleaf);
+		PushPortalIntoTreeRecursive(node->children[0], f, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(node->children[1], b, srcleaf, areahint);
 	}
 	else if (side == PLANE_SIDE_CROSS)
 	{
 		polygon_t *f, *b;
 		Polygon_SplitWithPlane(polygon, node->plane, CLIP_EPSILON, &f, &b);
-		PushPortalPolygonIntoLeafsRecursive(node->children[0], f, srcleaf);
-		PushPortalPolygonIntoLeafsRecursive(node->children[1], b, srcleaf);
+		PushPortalIntoTreeRecursive(node->children[0], f, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(node->children[1], b, srcleaf, areahint);
 	}
 }
 
-void PushPortalPolygonIntoLeafs(bsptree_t *tree, polygon_t *polygon, bspnode_t *leaf)
+static void PushPortalIntoTree(bsptree_t *tree, polygon_t *polygon, bspnode_t *srcleaf, bool areahint)
 {
 	// guard against a null polygon being passed in
 	if (!polygon)
 		return;
 
-	PushPortalPolygonIntoLeafsRecursive(tree->root, polygon, leaf);
+	PushPortalIntoTreeRecursive(tree->root, polygon, srcleaf, areahint);
 }
 
 // walk up the tree from leaf to root and clip the polygon in place
@@ -224,7 +221,7 @@ static polygon_t *ClipPolygonAgainstLeaf(polygon_t *p, bspnode_t *leaf)
 	return ClipPolygonAgainstLeafRecursive(p, leaf->parent, leaf);
 }
 
-polygon_t* BuildLeafPolygon(plane_t plane)
+static polygon_t* BuildLeafPolygon(plane_t plane)
 {
 	// fixme: these sizes should really be calculated from the tree bounds?
 	float usize = 2 * MAX_VERTEX_SIZE;
@@ -266,7 +263,7 @@ static void ProcessLeaf(bsptree_t *tree, bspnode_t *leaf)
 		polygon = ClipPolygonAgainstLeaf(polygon, leaf);
 
 		// push it into the tree and see which leaf it pops into
-		PushPortalPolygonIntoLeafs(tree, polygon, leaf);
+		PushPortalIntoTree(tree, polygon, leaf, node->areahint);
 	}
 }
 

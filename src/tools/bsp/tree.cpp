@@ -216,22 +216,24 @@ static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
 {
 	int score = 0;
 	
-	// favour planes which are axial
-	if(plane.IsAxial())
-		score += 50;
-	
 	for(; list; list = list->next)
 	{
 		// favour polygons that don't cause splits
 		int side = PolygonOnPlaneSide(list, plane);
-		if(side == PLANE_SIDE_CROSS)
-			score += -5;
+		if(side != PLANE_SIDE_CROSS)
+			score += 1;
 	}
+
+	// favour planes which are axial
+	if(plane.IsAxial())
+		score *= 5;
+
+	// favour planes which are balanced at the top of the tree?
 	
 	return score;
 }
 
-static plane_t ChooseBestSplitPlane(bsppoly_t *list)
+static plane_t ChooseBestSplitPlane(bsppoly_t *list, bool *areahint)
 {
 	int bestscore = 0;
 	plane_t bestplane;
@@ -244,6 +246,7 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 	// check the area portals
 	{
 		bestscore = -9999999;
+		*areahint = true;
 		for (p = list; p; p = p->next)
 		{
 			// filter everything that is not an areahint
@@ -268,6 +271,7 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 	// check the structural polygons
 	{
 		bestscore = -9999999;
+		*areahint = false;
 		for (p = list; p; p = p->next)
 		{
 			// filter areahint polygons
@@ -288,7 +292,6 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list)
 		return bestplane;
 	}
 }
-
 
 static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sides)
 {
@@ -368,12 +371,14 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 	}
 	
 	// choose the best split plane for the list
-	plane = ChooseBestSplitPlane(list);
+	bool areahint;
+	plane = ChooseBestSplitPlane(list, &areahint);
 
 	// split the polygon list
 	PartitionPolygonList(plane, list, sides);
 
 	node->plane = plane;
+	node->areahint = areahint;
 	
 	// add two new nodes to the tree
 	node->children[0] = MallocBSPNode(tree, node);

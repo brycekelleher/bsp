@@ -66,6 +66,7 @@ typedef struct bspnode_s
 	
 	// the node split plane
 	plane_t			plane;
+	bool			areahint;
 	
 	// the node bounding box
 	box3			box;

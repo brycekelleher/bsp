@@ -90,9 +90,6 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 
 	leaf->area = area;
 
-	if (leaf->empty)
-		leaf->tree->numemptyareas++;
-
 	Message("adding leaf %#p\n", leaf);
 
 	for (portal_t *portal = leaf->portals; portal; portal = portal->leafnext)
@@ -125,6 +122,10 @@ void BuildAreas(bsptree_t *tree)
 
 		// create a new area
 		area_t *area = AllocArea(tree);
+
+		if (leaf->empty)
+			tree->numemptyareas++;
+
 		Walk(area, NULL, leaf);
 	}
 
