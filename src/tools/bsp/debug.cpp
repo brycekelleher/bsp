@@ -102,14 +102,15 @@ void DebugWritePortalFile(bsptree_t *tree)
 		{
 			//fprintf(fp, "color 1 0 0 1\n");
 			float rgb[3];
-			HSVToRGB(rgb, (float)leafnum / tree->numleafs, 1.0f, 1.0f);
+			float f = (float)leafnum / tree->numleafs;
+			f = 4.0f * f;
+			f = f - floor(f);
+			HSVToRGB(rgb, f, 1.0f, 1.0f);
 			fprintf(fp, "color %f %f %f 1\n", rgb[0], rgb[1], rgb[2]);
 		}
 
 		for (portal_t *p = l->portals; p; p = p->leafnext)
 		{
-			vec3 center = l->box.Center();
-			
 			fprintf(fp, "polyline\n");
 			fprintf(fp, "%i\n", p->polygon->numvertices + 1);
 			
@@ -118,7 +119,9 @@ void DebugWritePortalFile(bsptree_t *tree)
 				vec3 v = p->polygon->vertices[i % p->polygon->numvertices];
 
 				// scale the vertices so the indvidual portals are visible
+#if 1
 				{
+					vec3 center = l->box.Center();
 					vec3 boxsize =  l->box.Size();
 
 					vec3 scale;
@@ -130,6 +133,7 @@ void DebugWritePortalFile(bsptree_t *tree)
 					v[1] = center[1] + (scale[1] * ( v[1] - center[1]));
 					v[2] = center[2] + (scale[2] * ( v[2] - center[2]));
 				}
+#endif
 				
 				// write the vertex data
 				fprintf(fp, "%f %f %f\n",
