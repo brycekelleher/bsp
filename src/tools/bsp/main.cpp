@@ -9,8 +9,6 @@ extern const float MAX_VERTEX_SIZE	= 4096.0f;
 const char	*outputfilename = "out.bsp";
 static bool	verbose = false;
 
-
-
 void Message(const char *format, ...)
 {
 	if(!verbose)
@@ -27,10 +25,6 @@ void Message(const char *format, ...)
 
 	fprintf(stdout, "%s", buffer);
 }
-
-
-
-
 
 // ==============================================
 // Memory allocation
@@ -70,11 +64,33 @@ static void PrintUsage()
 	"-o <filename>		output filename\n"
 	);
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void ProcessEnvVars()
 {}
+
+// BuildTreeFromMapPolys
+static void ProcessModel()
+{
+	bsptree_t *tree;
+	
+	Message("Processing model...\n");
+
+	tree = BuildTree();
+	
+	Message("%i nodes\n", tree->numnodes);
+	Message("%i leaves\n", tree->numleafs);
+	Message("%i tree depth\n", tree->depth);
+	
+	MarkEmptyLeafs(tree);
+
+	BuildPortals(tree);
+
+	BuildAreas(tree);
+
+	WriteBinary(tree);
+}
 
 static void ProcessCommandLine(int argc, char *argv[])
 {
@@ -101,39 +117,21 @@ static void ProcessCommandLine(int argc, char *argv[])
 			Error("Unknown option \"%s\"\n", argv[i]);
 	}
 
-	// fixme: this is a bit rubbish
+	// eventually this could loop through all source files
+	// the higher level construct would be of a "bsp model"
+	// allowing multiple bsp models to be packed into a single file?
 	ReadMap(argv[i]);
-}
 
-
-// BuildTreeFromMapPolys
-static void TreeTest()
-{
-	bsptree_t *tree;
-	
-	tree = BuildTree();
-	
-	Message("Building tree on map polys...\n");
-	Message("%i nodes\n", tree->numnodes);
-	Message("%i leaves\n", tree->numleafs);
-	Message("%i tree depth\n", tree->depth);
-	
-	MarkEmptyLeafs(tree);
-
-	BuildPortals(tree);
-
-	BuildAreas(tree);
-	
-	WriteBinary(tree);
+	ProcessModel();
 }
 
 int main(int argc, char *argv[])
 {
 	DebugInit();
 	
+	ProcessEnvVars();
+
 	ProcessCommandLine(argc, argv);
-	
-	TreeTest();
 	
 	DebugShutdown();
 	

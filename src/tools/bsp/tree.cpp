@@ -75,63 +75,6 @@ static plane_t PolygonPlane(bsppoly_t *p)
 }
 
 // ==============================================
-// tree walking functions
-// bsp callback function for walking the tree
-
-typedef void (*bspcallback_t)(bspnode_t *n);
-
-static void Walk(bspnode_t *n, bspcallback_t callback)
-{
-	if (!n)
-	{
-		return;
-	}
-	
-	callback(n);
-	Walk(n->children[0], callback);
-	Walk(n->children[1], callback);
-}
-
-static void WalkWithBox(bspnode_t *n, box3 box, bspcallback_t callback)
-{
-	// if this is a leaf then callback
-	if(!n->children[0] && !n->children[1])
-	{
-		callback(n);
-		return;
-	}
-	
-	int side = n->plane.BoxOnPlaneSide(box, CLIP_EPSILON);
-	
-	if(side == PLANE_SIDE_FRONT)
-		WalkWithBox(n->children[0], box, callback);
-	else if (side == PLANE_SIDE_BACK)
-		WalkWithBox(n->children[1], box, callback);
-	else if(side == PLANE_SIDE_CROSS)
-	{
-		WalkWithBox(n->children[0], box, callback);
-		WalkWithBox(n->children[1], box, callback);
-	}
-}
-
-static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)
-{
-	// if this is a leaf then return it
-	if(!n->children[0] && !n->children[1])
-	{
-		return n;
-	}
-	
-	int side = n->plane.PointOnPlaneSide(p, CLIP_EPSILON);
-	
-	if (side == PLANE_SIDE_FRONT || side == PLANE_SIDE_ON)
-		return WalkWithPoint(n->children[0], p);
-	else
-		return WalkWithPoint(n->children[1], p);
-}
-
-
-// ==============================================
 // Tree building code
 
 static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t **f, bsppoly_t **b)
@@ -163,11 +106,6 @@ static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t *
 		Error("Front polygon doesn't sit on original plane after split\n");
 	if (*b && !CheckPolygonOnPlane(*b, PolygonPlane(p)))
 		Error("Back polygon doesn't sit on original plane after split\n");
-	
-	if(ff && ff->numvertices == 3)
-		printf("");
-	if(bb && bb->numvertices == 3)
-		printf("");
 }
 
 // this reverses the order of the list...
@@ -398,6 +336,8 @@ bsptree_t *BuildTree()
 	bsppoly_t	*list;
 	box3		box;
 
+	Message("Building bsp tree...\n");
+
 	list = MakePolygonList();
 	
 	tree = MakeEmptyTree();
@@ -410,6 +350,10 @@ bsptree_t *BuildTree()
 	}
 	
 	BuildTreeRecursive(tree, tree->root, list, 1);
+
+	Message("%i nodes\n", tree->numnodes);
+	Message("%i leaves\n", tree->numleafs);
+	Message("%i tree depth\n", tree->depth);
 	
 	return tree;
 }

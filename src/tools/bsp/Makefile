@@ -31,7 +31,7 @@ $(BIN): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $(BIN)
 
 clean:
-	rm -rf $(OBJECTS)
+	rm -rf $(OBJECTS) *.o
 	rm -rf test
 	rm -rf bsp
 
