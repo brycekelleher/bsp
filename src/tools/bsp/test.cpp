@@ -1,3 +1,5 @@
+#include "bsp.h"
+
 typedef void (*bspcallback_t)(bspnode_t *n, void *data);
 
 static void IterateLeafs(bspnode_t *node, bspcallback_t func, void *data)
@@ -12,7 +14,7 @@ static void IterateLeafs(bspnode_t *node, bspcallback_t func, void *data)
 	IterateLeafs(node->children[1], func, data);
 }
 
-void TreeIterateLeafs(bsptree_t *tree, bspcallback_t func, data)
+void TreeIterateLeafs(bsptree_t *tree, bspcallback_t func, void *data)
 {
 	IterateLeafs(tree->root, func, data);
 }
@@ -22,7 +24,7 @@ static void WalkWithBox(bspnode_t *n, box3 box, bspcallback_t callback, void *da
 	// if this is a leaf then callback
 	if(!n->children[0] && !n->children[1])
 	{
-		func(n, data);
+		callback(n, data);
 		return;
 	}
 	
@@ -39,9 +41,9 @@ static void WalkWithBox(bspnode_t *n, box3 box, bspcallback_t callback, void *da
 	}
 }
 
-void TreeWalkWithBox(bsptree_t *n, box3 box, bspcallback_t func, void *data)
+void TreeWalkWithBox(bsptree_t *tree, box3 box, bspcallback_t callback, void *data)
 {
-	WalkWithBox(tree->root, box, func, data);
+	WalkWithBox(tree->root, box, callback, data);
 }
 
 static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)

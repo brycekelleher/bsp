@@ -117,8 +117,8 @@ void DebugWritePortalFile(bsptree_t *tree)
 		for (portal_t *p = l->portals; p; p = p->leafnext)
 		{
 			// skip portals which cross an empty / solid boundary
-			if (p->srcleaf->empty ^ p->dstleaf->empty)
-				continue;
+			//if (p->srcleaf->empty ^ p->dstleaf->empty)
+			//	continue;
 
 			fprintf(fp, "polyline\n");
 			fprintf(fp, "%i\n", p->polygon->numvertices + 1);
@@ -127,8 +127,7 @@ void DebugWritePortalFile(bsptree_t *tree)
 			{
 				vec3 v = p->polygon->vertices[i % p->polygon->numvertices];
 
-				// scale the vertices so the indvidual portals are visible
-#if 1
+#if 0
 				{
 					vec3 center = l->box.Center();
 					vec3 boxsize =  l->box.Size();
@@ -141,6 +140,29 @@ void DebugWritePortalFile(bsptree_t *tree)
 					v[0] = center[0] + (scale[0] * ( v[0] - center[0]));
 					v[1] = center[1] + (scale[1] * ( v[1] - center[1]));
 					v[2] = center[2] + (scale[2] * ( v[2] - center[2]));
+				}
+#endif
+
+				// scale the vertices so the individual portals are visible
+#if 1
+				{
+					box3 box = Polygon_BoundingBox(p->polygon);
+					vec3 center = box.Center();
+					vec3 boxsize =  box.Size();
+
+					v = center + (0.95f * (v - center));
+
+					// push them away from the normal
+					vec3 normal = Polygon_Normal(p->polygon);
+					v = v + -normal * 4.0f;
+					//vec3 scale;
+					//scale[0] = (boxsize[0] - 8.0f) / boxsize[0];
+					//scale[1] = (boxsize[1] - 8.0f) / boxsize[1];
+					//scale[2] = (boxsize[2] - 8.0f) / boxsize[2];
+
+					//v[0] = center[0] + (scale[0] * ( v[0] - center[0]));
+					//v[1] = center[1] + (scale[1] * ( v[1] - center[1]));
+					//v[2] = center[2] + (scale[2] * ( v[2] - center[2]));
 				}
 #endif
 				
