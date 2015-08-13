@@ -10,6 +10,47 @@ static void EmitFloat(float f, FILE *fp)
 	WriteBytes(&f, sizeof(float), fp);
 }
 
+static void EmitPlane(plane_t plane, FILE *fp)
+{
+	EmitFloat(plane.a, fp);
+	EmitFloat(plane.b, fp);
+	EmitFloat(plane.c, fp);
+	EmitFloat(plane.d, fp);
+}
+
+static void EmitBox3(box3 box, FILE *fp)
+{
+	EmitFloat(box.min[0], fp);
+	EmitFloat(box.min[1], fp);
+	EmitFloat(box.min[2], fp);
+	EmitFloat(box.max[0], fp);
+	EmitFloat(box.max[1], fp);
+	EmitFloat(box.max[2], fp);
+}
+
+static void EmitPolygon(polygon_t *p, FILE *fp)
+{
+	EmitInt(p->numvertices, fp);
+
+	for(int i = 0; i < p->numvertices; i++)
+	{
+		EmitFloat(p->vertices[i][0], fp);
+		EmitFloat(p->vertices[i][1], fp);
+		EmitFloat(p->vertices[i][2], fp);
+	}
+}
+
+static void EmitPortal(portal_t *p, FILE *fp)
+{
+	EmitPolygon(p->polygon, fp);
+}
+
+static void EmitNodePortals(bspnode_t* n, FILE *fp)
+{
+	for (portal_t *p = n->portals; p; p = p->leafnext)
+		EmitPortal(p, fp);
+}
+
 // emit nodes in postorder (leaves at start of file)
 static int numnodes = 0;
 static int EmitNode(bspnode_t *n, FILE *fp)
@@ -32,18 +73,9 @@ static int EmitNode(bspnode_t *n, FILE *fp)
 
 // disable this to check the node linkage
 #if 1
-		// Emit the plane data
-		EmitFloat(n->plane.a, fp);
-		EmitFloat(n->plane.b, fp);
-		EmitFloat(n->plane.c, fp);
-		EmitFloat(n->plane.d, fp);
-		
-		EmitFloat(n->box.min[0], fp);
-		EmitFloat(n->box.min[1], fp);
-		EmitFloat(n->box.min[2], fp);
-		EmitFloat(n->box.max[0], fp);
-		EmitFloat(n->box.max[1], fp);
-		EmitFloat(n->box.max[2], fp);
+		EmitPlane(n->plane, fp);
+		EmitBox3(n->box, fp);
+		EmitNodePortals(n, fp);
 #endif
 	}
 	
