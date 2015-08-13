@@ -62,3 +62,66 @@ static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)
 		return WalkWithPoint(n->children[1], p);
 }
 
+#if 0
+void LineQueryRecursive(bspnode_t *n, line_t *line)
+{
+	if (!n->children[0] && !n->children[1])
+	{
+		// are we going from empty to solid or solid to empty?
+		if (lineq) // && (n->empty ^ lineq->empty))
+		{
+			printf("hit point at %f, %f\n", line->v[0][0], line->v[0][1]);
+			WriteCross(fplineq, line->v[0]);
+		}
+
+		lineq = n;
+		return;
+	}
+
+	int side = Line_OnPlaneSide(line, n->plane, globalepsilon);
+
+	if (side == PLANE_SIDE_FRONT)
+		LineQueryRecursive(n->children[0], line);
+	else if (side == PLANE_SIDE_BACK)
+		LineQueryRecursive(n->children[1], line);
+	else if (side == PLANE_SIDE_CROSS)
+	{
+		line_t *f, *b;
+		Line_SplitWithPlane(line, n->plane, globalepsilon, &f, &b);
+
+		side = n->plane.PointOnPlaneSide(line->v[0], globalepsilon);
+		if(side == PLANE_SIDE_FRONT)
+		{
+			LineQueryRecursive(n->children[0], f);
+			LineQueryRecursive(n->children[1], b);
+		}
+		else
+		{
+			LineQueryRecursive(n->children[1], b);
+			LineQueryRecursive(n->children[0], f);
+		}
+	}
+	else if (side == PLANE_SIDE_ON)
+	{
+		// hmmm	
+		LineQueryRecursive(n->children[0], line);
+	}
+}
+
+static void LineQuery(bsptree_t *tree)
+{
+	fplineq = fopen("lineq.gld", "w");
+
+	line_t *l = Line_Alloc();
+	l->v[0][0] = 0.0f;
+	l->v[0][1] = 0.0f;
+	l->v[1][0] = 4096.0f;
+	l->v[1][1] = 4096.0f;
+
+	lineq = NULL;
+	LineQueryRecursive(tree->root, l);
+
+	fclose(fplineq);
+}
+#endif
+
