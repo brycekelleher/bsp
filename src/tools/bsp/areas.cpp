@@ -1,11 +1,5 @@
 #include "bsp.h"
 
-static vec3 Polygon_GetNormal(polygon_t *p)
-{
-	plane_t plane = Polygon_Plane(p);
-	return plane.GetNormal();
-}
-
 // if the polygon sits on the plane then send the plane down the front or back side depending on whether
 // the polygon normal faces the same direction as the plane
 static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
@@ -27,7 +21,7 @@ static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
 		FilterPolygonIntoLeaf(n->children[1], p);
 	else if (side == PLANE_SIDE_ON)
 	{
-		float dot = Dot(n->plane.GetNormal(), Polygon_GetNormal(p));
+		float dot = Dot(n->plane.GetNormal(), Polygon_Normal(p));
 
 		// map 0 to the front child and 1 to the back child
 		int facing = (dot > 0.0f ? 0 : 1);
