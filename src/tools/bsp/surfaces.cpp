@@ -5,8 +5,8 @@
 
 typedef struct trisurf_t
 {
-	int	numtriangles;
-	int	maxtriangles;
+	int	numvertices;
+	int	maxvertices;
 	vec3	*vertices;
 
 } trisurf_t;
@@ -19,16 +19,18 @@ static trisurf_t *TS_New()
 // fixme: reimplement malloc?
 static void TS_AddTriangle(trisurf_t *s, vec3 v0, vec3 v1, vec3 v2)
 {
-	if (s->numtriangles + 1 >= s->maxtriangles)
+	if (s->numvertices + 3 >= s->maxvertices)
 	{
-		s->maxtriangles *= 2;
-		if(!s->maxtriangles)
-			s->maxtriangles = 16;
+		s->maxvertices *= 2;
+		if(!s->maxvertices)
+			s->maxvertices = 16;
 
-		s->vertices = (vec3*)realloc(s->vertices, s->maxtriangles * 3 * sizeof(float));
+		s->vertices = (vec3*)realloc(s->vertices, s->maxvertices * sizeof(s->vertices[0]));
 	}
 
-	vec3 *v = s->vertices + s->numtriangles++;
+	vec3 *v = s->vertices + s->numvertices;
+	s->numvertices += 3;
+
 	*v++ = v0;
 	*v++ = v1;
 	*v++ = v2;
@@ -93,22 +95,90 @@ static void PrintSurfaces(bsptree_t *tree)
 	for (area_t *a = tree->areas; a; a = a->next)
 	{
 		trisurf_t *s = (trisurf_t*)a->trisurf;
-		printf("area %p surface\n", a);
 
-		int i;
-		vec3 *v;
-		for (i = 0, v = s->vertices; i < s->numtriangles * 3; i++, v++)
-			printf("vertex %i: (%f %f %f)\n", i, (*v)[0], (*v)[1], (*v)[2]);
+		if (!s)
+			continue;
+
+		printf("area %p surface\n", a);
+		for (int i = 0; i < s->numvertices; i++)
+			printf("vertex %i: (%f %f %f)\n", i, s->vertices[i][0], s->vertices[i][1], s->vertices[i][2]);
 	}
+}
+
+// fixme: all this needs to be moved
+// maps f in the range 0..1 to a HSV color
+static void HSVToRGB(float rgb[3], float h, float s, float v)
+{
+	float r, g, b;
+	
+	int i = floor(h * 6);
+	float f = h * 6 - i;
+	float p = v * (1 - s);
+	float q = v * (1 - f * s);
+	float t = v * (1 - (1 - f) * s);
+	
+	switch(i % 6)
+	{
+		case 0: r = v, g = t, b = p; break;
+		case 1: r = q, g = v, b = p; break;
+		case 2: r = p, g = v, b = t; break;
+		case 3: r = p, g = q, b = v; break;
+		case 4: r = t, g = p, b = v; break;
+		case 5: r = v, g = p, b = q; break;
+	}
+	
+	rgb[0] = r;
+	rgb[1] = g;
+	rgb[2] = b;
+}
+
+static void ColorMap(float rgb[3], float f)
+{
+	return HSVToRGB(rgb, f, 1.0f, 1.0f);
+}
+
+static void ColorMap(float rgb[3], int i, int n)
+{
+	return ColorMap(rgb, (float)i / n);
+}
+
+void DebugDumpAreaSurfaces(bsptree_t *tree)
+{
+	FILE *fp = FileOpenTextWrite("debug_surfaces.gld");
+
+	int i = 0;
+	for (area_t *a = tree->areas; a; a = a->next, i++)
+	{
+		trisurf_t *s = (trisurf_t*)a->trisurf;
+
+		if (!s)
+			continue;
+
+		//fprintf(fp, "//area %p surface\n", a);
+		{
+			float rgb[3];
+			ColorMap(rgb, i, tree->numemptyareas);
+			fprintf(fp, "color %f %f %f 1.0\n", rgb[0], rgb[1], rgb[2]);
+
+			fprintf(fp, "triangles\n");
+			fprintf(fp, "%i\n", s->numvertices / 3);
+			for (int i = 0; i < s->numvertices; i++)
+				fprintf(fp, "%f %f %f\n",
+					s->vertices[i][0],
+					s->vertices[i][1],
+					s->vertices[i][2]);
+		}
+	}
+
+	FileClose(fp);
 }
 
 // push every map face into the tree and store in the areas
 void BuildSurfaces(bsptree_t *tree)
 {
-	// Iterate all map faces, filter them into the tree
 	for (mapface_t *f = mapdata->faces; f; f = f->next)
 	{
-		// Fixme: need a method to filter only structural polygons
+		// fixme: need a method to filter only structural polygons
 		if (f->areahint)
 			continue;
 
@@ -118,5 +188,8 @@ void BuildSurfaces(bsptree_t *tree)
 	}
 
 	PrintSurfaces(tree);
+
+	DebugDumpAreaSurfaces(tree);
 }
+
 

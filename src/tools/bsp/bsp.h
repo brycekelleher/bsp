@@ -132,6 +132,7 @@ void DebugShutdown();
 void DebugWritePortalFile(bsptree_t *tree);
 void DebugWritePortalPolygon(bsptree_t *tree, polygon_t *p);
 void DebugEndLeafPolygons();
+void DebugDumpAreaSurfaces(bsptree_t *tree);
 
 // main
 void *Malloc(int numbytes);
