@@ -80,6 +80,12 @@ static void ProcessModel()
 
 	BuildAreas(tree);
 
+	// shiny new surface building code
+	{
+		extern void BuildSurfaces(bsptree_t*);
+		BuildSurfaces(tree);
+	}
+
 	WriteBinary(tree);
 }
 

@@ -50,6 +50,7 @@ typedef struct area_s
 {
 	struct area_s		*next;
 	struct bspnode_s	*leafs;
+	void			*trisurf;
 
 } area_t;
 
