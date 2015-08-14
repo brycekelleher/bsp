@@ -392,6 +392,25 @@ static void ProcessColor(void *cmd)
 	glColor4f(r, g, b, a);
 }
 
+static void ProcessCull(void *cmd)
+{
+	int mode = BufferReadInt();
+	if(mode == 0)
+	{
+		glDisable(GL_CULL_FACE);
+	}
+	else if (mode == 1)
+	{
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CCW);
+	}
+	else if (mode == 2)
+	{
+		glEnable(GL_CULL_FACE);
+		glFrontFace(GL_CW);
+	}
+}
+
 static void ProcessLines(void *cmd)
 {
 	int numvertices;
@@ -445,6 +464,7 @@ static void DispatchCommand(cmdtype_t cmdtype)
 		{ CMD_FLUSH,	ProcessFlush },
 		{ CMD_END,	ProcessEnd },
 		{ CMD_COLOR,	ProcessColor },
+		{ CMD_CULL,	ProcessCull },
 		{ CMD_LINES,	ProcessLines },
 		{ CMD_TRIANGLES,	ProcessTriangles }
 	};

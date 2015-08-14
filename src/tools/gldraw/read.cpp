@@ -23,16 +23,48 @@ static void EmitUnsignedInt(unsigned int ui)
 	BufferWriteBytes(&ui, 4);
 }
 
+#if 0
+// fixme: replace with this?
+static char *ReadToken(FILE *fp)
+{
+	int c;
+
+	c = fgetc(fp);
+	for (; c != EOF && isspace(c); c = fgetc(fp))
+		if (c == '\n')
+			linenum++;
+
+	int i = 0;
+	for (; c != EOF && !isspace(c); c = fgetc(fp))
+		buffer[i++] = c;
+
+	buffer[i] = '\0';
+
+	if (i == 0)
+		return NULL;
+
+	return buffer;
+}
+#endif
+
 // returns a pointer to a static
 static char* ReadToken(FILE *fp)
 {
 	static char buffer[1024];
 
-	if(feof(fp))
+	if (feof(fp))
 		return NULL;
 
 	fscanf(fp, "%s", buffer);
 	return buffer;
+}
+
+static void Eatline(FILE *fp)
+{
+	int c;
+	while ((c = fgetc(fp)) != EOF)
+		if (c == '\n')
+			return;
 }
 
 static float ReadFloat(FILE *fp)
@@ -61,6 +93,12 @@ static void ReadColor(FILE *fp)
 	EmitFloat(g);
 	EmitFloat(b);
 	EmitFloat(a);
+}
+
+static void ReadCull(FILE *fp)
+{
+	EmitCommand(CMD_CULL);
+	EmitInt(ReadInt(fp));
 }
 
 static void ReadLine(FILE *fp)
@@ -95,7 +133,7 @@ static void ReadLineList(FILE *fp)
 	numvertices = numlines * 2;
 	EmitInt(numvertices);
 
-	while(numvertices)
+	while (numvertices)
 	{
 		float x, y, z;
 
@@ -140,7 +178,7 @@ static void ReadTriangleList(FILE *fp)
 	numvertices = numtris * 3;
 	EmitInt(numvertices);
 
-	while(numvertices)
+	while (numvertices)
 	{
 		float x, y, z;
 
@@ -243,25 +281,34 @@ void Read(FILE *fp)
 {
 	char *token;
 
-	while((token = ReadToken(fp)))
+	while ((token = ReadToken(fp)))
 	{
-		if(!strcmp("color", token))
+		// eat comments
+		if (token[0] == '/' && token[1] == '/')
+		{
+			Eatline(fp);
+			continue;
+		}
+
+		if (!strcmp("color", token))
 			ReadColor(fp);
-		if(!strcmp("line", token))
+		else if (!strcmp("cull", token))
+			ReadCull(fp);
+		else if (!strcmp("line", token))
 			ReadLine(fp);
-		if(!strcmp("linelist", token))
+		else if (!strcmp("linelist", token))
 			ReadLineList(fp);
-		if(!strcmp("lines", token))
+		else if (!strcmp("lines", token))
 			ReadLineList(fp);
-		if(!strcmp("triangle", token))
+		else if (!strcmp("triangle", token))
 			ReadTriangle(fp);
-		if(!strcmp("trianglelist", token))
+		else if (!strcmp("trianglelist", token))
 			ReadTriangleList(fp);
-		if(!strcmp("triangles", token))
+		else if (!strcmp("triangles", token))
 			ReadTriangleList(fp);
-		if(!strcmp("polyline", token))
+		else if (!strcmp("polyline", token))
 			ReadPolyline(fp);
-		if(!strcmp("polygon", token))
+		else if (!strcmp("polygon", token))
 			ReadPolygon(fp);
 	}
 
