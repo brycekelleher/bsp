@@ -16,6 +16,16 @@ extern const float AREA_EPSILON;
 extern const float PLANAR_EPSILON;
 extern const float MAX_VERTEX_SIZE;
 
+typedef struct trisurf_s
+{
+	int	numvertices;
+	int	maxvertices;
+	vec3	*vertices;
+
+} trisurf_t;
+
+
+
 typedef struct mapface_s
 {
 	struct mapface_s	*next;
@@ -50,7 +60,7 @@ typedef struct area_s
 {
 	struct area_s		*next;
 	struct bspnode_s	*leafs;
-	void			*trisurf;
+	struct trisurf_s	*trisurf;
 
 } area_t;
 

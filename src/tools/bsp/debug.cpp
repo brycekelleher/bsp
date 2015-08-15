@@ -86,6 +86,16 @@ static void HSVToRGB(float rgb[3], float h, float s, float v)
 	rgb[2] = b;
 }
 
+static void ColorMap(float rgb[3], float f)
+{
+	return HSVToRGB(rgb, f, 1.0f, 1.0f);
+}
+
+static void ColorMap(float rgb[3], int i, int n)
+{
+	return ColorMap(rgb, (float)i / n);
+}
+
 // This is a visualisation of the portals that each leaf contains. These are portals which lead
 // from this leaf (srcleaf) to the another leaf (dstleaf). In other words this is what the window
 // that the leaf can see into the other leaf. There may be splits in the portals even though the
@@ -209,4 +219,36 @@ void DebugEndLeafPolygons()
 {
 	leafnum++;
 }
+
+void DebugDumpAreaSurfaces(bsptree_t *tree)
+{
+	FILE *fp = FileOpenTextWrite("debug_surfaces.gld");
+
+	int i = 0;
+	for (area_t *a = tree->areas; a; a = a->next, i++)
+	{
+		trisurf_t *s = a->trisurf;
+
+		if (!s)
+			continue;
+
+		fprintf(fp, "//area %p surface\n", a);
+		{
+			float rgb[3];
+			ColorMap(rgb, i, tree->numemptyareas);
+			fprintf(fp, "color %f %f %f 1.0\n", rgb[0], rgb[1], rgb[2]);
+
+			fprintf(fp, "triangles\n");
+			fprintf(fp, "%i\n", s->numvertices / 3);
+			for (int i = 0; i < s->numvertices; i++)
+				fprintf(fp, "%f %f %f\n",
+					s->vertices[i][0],
+					s->vertices[i][1],
+					s->vertices[i][2]);
+		}
+	}
+
+	FileClose(fp);
+}
+
 

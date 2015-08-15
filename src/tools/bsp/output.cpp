@@ -45,6 +45,18 @@ static void EmitPortal(portal_t *p, FILE *fp)
 	EmitPolygon(p->polygon, fp);
 }
 
+static void EmitTriSurf(trisurf_t *s, FILE *fp)
+{
+	EmitInt(s->numvertices, fp);
+
+	for (int i = 0; i < s->numvertices; i++)
+	{
+		EmitFloat(s->vertices[i][0], fp);
+		EmitFloat(s->vertices[i][1], fp);
+		EmitFloat(s->vertices[i][2], fp);
+	}
+}
+
 static void EmitNodePortals(bspnode_t* n, FILE *fp)
 {
 	for (portal_t *p = n->portals; p; p = p->leafnext)
