@@ -57,6 +57,18 @@ static void EmitTriSurf(trisurf_t *s, FILE *fp)
 	}
 }
 
+static void EmitAreaSurfaces(bsptree_t *tree, FILE *fp)
+{
+	for (area_t *a = tree->areas; a; a = a->next)
+	{
+		trisurf_t *s = a->trisurf;
+		if (!s)
+			continue;
+
+		EmitTriSurf(s, fp);
+	}
+}
+
 static void EmitNodePortals(bspnode_t* n, FILE *fp)
 {
 	for (portal_t *p = n->portals; p; p = p->leafnext)
@@ -101,7 +113,8 @@ static void EmitTree(bsptree_t *tree, FILE *fp)
 	EmitInt(tree->numleafs, fp);
 	
 	int rootnode = EmitNode(tree->root, fp);
-	
+
+	EmitAreaSurfaces(tree, fp);
 }
 
 void WriteBinary(bsptree_t *tree)
