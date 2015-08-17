@@ -58,6 +58,29 @@ float ReadFloat(FILE *fp)
 	return f;
 }
 
+static void DecodePolygon(FILE *fp)
+{
+	int numvertices = ReadInt(fp);
+
+	for (int i = 0; i < numvertices; i++)
+	{
+		float x, y, z;
+		x = ReadFloat(fp);
+		y = ReadFloat(fp);
+		z = ReadFloat(fp);
+
+		printf("vertex %i: %f %f %f\n", x, y, z);
+	}
+}
+
+static void DecodePortals(FILE *fp)
+{
+	int numportals = ReadInt(fp);
+
+	for (int i = 0; i < numportals; i++)
+		DecodePolygon(fp);
+}
+
 static void DecodeNode(int nodenum, FILE *fp)
 {
 	if(nodenum == -1)
@@ -89,6 +112,8 @@ static void DecodeNode(int nodenum, FILE *fp)
 	printf("boxmin: %f, %f, %f\n", min[0], min[1], min[2]);
 	printf("boxmax: %f, %f, %f\n", max[0], max[1], max[2]);
 
+	DecodePortals(fp);
+
 	DecodeNode(childnum[0], fp);
 	DecodeNode(childnum[1], fp);
 }
@@ -106,9 +131,31 @@ static void DecodeTree(FILE *fp)
 	DecodeNode(0, fp);
 }
 
+static void DecodeTriSurface(FILE *fp)
+{
+	int numvertices = ReadInt(fp);
+
+	for (int i = 0; i < numvertices; i++)
+	{
+		float x, y, z;
+		x = ReadFloat(fp);
+		y = ReadFloat(fp);
+		z = ReadFloat(fp);
+
+		printf("vertex %i: %f %f %f\n", x, y, z);
+	}
+}
+
+static void DecodeAreaSurfaces(FILE *fp)
+{
+	DecodeTriSurface();
+}
+
 static void DecodeFile(FILE *fp)
 {
 	DecodeTree(fp);
+
+	DecodeAreaSurfaces(fp);
 }
 
 // fixme: move this into another file

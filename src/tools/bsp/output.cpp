@@ -32,7 +32,7 @@ static void EmitPolygon(polygon_t *p, FILE *fp)
 {
 	EmitInt(p->numvertices, fp);
 
-	for(int i = 0; i < p->numvertices; i++)
+	for (int i = 0; i < p->numvertices; i++)
 	{
 		EmitFloat(p->vertices[i][0], fp);
 		EmitFloat(p->vertices[i][1], fp);
@@ -45,32 +45,10 @@ static void EmitPortal(portal_t *p, FILE *fp)
 	EmitPolygon(p->polygon, fp);
 }
 
-static void EmitTriSurf(trisurf_t *s, FILE *fp)
-{
-	EmitInt(s->numvertices, fp);
-
-	for (int i = 0; i < s->numvertices; i++)
-	{
-		EmitFloat(s->vertices[i][0], fp);
-		EmitFloat(s->vertices[i][1], fp);
-		EmitFloat(s->vertices[i][2], fp);
-	}
-}
-
-static void EmitAreaSurfaces(bsptree_t *tree, FILE *fp)
-{
-	for (area_t *a = tree->areas; a; a = a->next)
-	{
-		trisurf_t *s = a->trisurf;
-		if (!s)
-			continue;
-
-		EmitTriSurf(s, fp);
-	}
-}
-
 static void EmitNodePortals(bspnode_t* n, FILE *fp)
 {
+	EmitInt(n->numportals, fp);
+
 	for (portal_t *p = n->portals; p; p = p->leafnext)
 		EmitPortal(p, fp);
 }
@@ -80,7 +58,7 @@ static int numnodes = 0;
 static int EmitNode(bspnode_t *n, FILE *fp)
 {
 	// termination guard
-	if(!n)
+	if (!n)
 	{
 		return -1;
 	}
@@ -105,6 +83,30 @@ static int EmitNode(bspnode_t *n, FILE *fp)
 	
 	int thisnode = numnodes++;
 	return thisnode;
+}
+
+static void EmitTriSurf(trisurf_t *s, FILE *fp)
+{
+	EmitInt(s->numvertices, fp);
+
+	for (int i = 0; i < s->numvertices; i++)
+	{
+		EmitFloat(s->vertices[i][0], fp);
+		EmitFloat(s->vertices[i][1], fp);
+		EmitFloat(s->vertices[i][2], fp);
+	}
+}
+
+static void EmitAreaSurfaces(bsptree_t *tree, FILE *fp)
+{
+	for (area_t *a = tree->areas; a; a = a->next)
+	{
+		trisurf_t *s = a->trisurf;
+		if (!s)
+			continue;
+
+		EmitTriSurf(s, fp);
+	}
 }
 
 static void EmitTree(bsptree_t *tree, FILE *fp)

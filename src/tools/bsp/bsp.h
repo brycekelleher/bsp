@@ -60,6 +60,7 @@ typedef struct area_s
 {
 	struct area_s		*next;
 	struct bspnode_s	*leafs;
+
 	struct trisurf_s	*trisurf;
 
 } area_t;
@@ -84,6 +85,7 @@ typedef struct bspnode_s
 
 	// portals if this node is a leaf
 	struct portal_s		*portals;
+	int			numportals;
 
 	// areas
 	struct area_s		*area;

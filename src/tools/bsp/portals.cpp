@@ -111,6 +111,7 @@ static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *d
 	// link it into the leaflist
 	portal->leafnext = srcleaf->portals;
 	srcleaf->portals = portal;
+	srcleaf->numportals++;
 	
 	// link into the global list
 	portal->globalnext = globalportals;
