@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include "gldraw.h"
+#include "glview.h"
 
 // ==============================================
 // errors and warnings

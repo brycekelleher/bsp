@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "gldraw.h"
+#include "glview.h"
 
 struct buffer_t
 {

@@ -4,7 +4,7 @@ CFLAGS		= -g -ggdb -DGL_GLEXT_PROTOTYPES
 CXXFLAGS	= -g -ggdb -DGL_GLEXT_PROTOTYPES
 OBJECTS 	= read.o draw.o buffer.o main.o
 LDLIBS		= -lGL -lglut -lm
-BIN		= gldraw
+BIN		= glview
 
 ifeq ($(APPLE),1)
 CFLAGS += -I/opt/X11/include
