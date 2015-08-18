@@ -136,6 +136,7 @@ static void DecodeArea(int areanum, FILE *fp)
 
 	int numleafs = ReadInt(fp);
 	printf("numleafs: %i\n", numleafs);
+	printf("leafs: ");
 	for (int i = 0; i < numleafs; i++)
 	{
 		int leafnum = ReadInt(fp);

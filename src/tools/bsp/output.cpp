@@ -104,7 +104,7 @@ static void EmitAreaPortals(area_t *a, FILE *fp)
 	portal_t *p;
 
 	EmitInt(a->numportals, fp);
-	for (p = a->portals; p; p = p->treenext)
+	for (p = a->portals; p; p = p->areanext)
 		EmitPortal(p, fp);
 }
 

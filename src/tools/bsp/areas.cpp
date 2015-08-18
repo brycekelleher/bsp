@@ -91,20 +91,72 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 	for (portal_t *portal = leaf->portals; portal; portal = portal->leafnext)
 	{
 		// don't flow across solid/empty boundaries, leafs already assigned an area or across areahints
-		if (leaf->empty ^ portal->dstleaf->empty)
+		if (portal->srcleaf->empty ^ portal->dstleaf->empty)
 			continue;
 		if (portal->dstleaf->area)
 			continue;
 		if (portal->areahint)
 			continue;
 
-		// link this portal into the area's list of portals
-		portal->areanext = area->portals;
-		area->portals = portal;
-		area->numportals++;
-
 		// flow into the next leaf
 		Walk(area, portal, portal->dstleaf);
+	}
+}
+
+static void FindAreas(bsptree_t *tree)
+{
+	bspnode_t *leaf;
+
+	// process all that aren't empty
+	for (leaf = tree->leafs; leaf; leaf = leaf->leafnext)
+	{
+		if (leaf->area)
+			continue;
+		if (leaf->empty)
+			continue;
+
+		//Message("processing leaf %#p\n", leaf);
+
+		// create a new area
+		area_t *area = AllocArea(tree);
+		Walk(area, NULL, leaf);
+
+	}
+
+	// process all empty leafs
+	for (leaf = tree->leafs; leaf; leaf = leaf->leafnext)
+	{
+		if (leaf->area)
+			continue;
+
+		//Message("processing leaf %#p\n", leaf);
+
+		// create a new area
+		area_t *area = AllocArea(tree);
+		tree->numemptyareas++;
+
+		Walk(area, NULL, leaf);
+	}
+}
+
+static void AddPortalsToAreas(bsptree_t *tree)
+{
+	for (portal_t *portal = tree->portals; portal; portal = portal->treenext)
+	{
+		// filter portals which aren't areahints and which aren't in empty areas and cross empty/solid boundaries
+		if (!portal->areahint)
+			continue;
+		if (!portal->srcleaf->empty)
+			continue;
+		if (portal->srcleaf->empty ^ portal->dstleaf->empty)
+			continue;
+
+		area_t *a = portal->srcleaf->area;
+
+		// link this portal into the area's list of portals
+		portal->areanext = a->portals;
+		a->portals = portal;
+		a->numportals++;
 	}
 }
 
@@ -112,24 +164,9 @@ void BuildAreas(bsptree_t *tree)
 {
 	Message("Builing areas\n");
 
-	for (bspnode_t *leaf = tree->leafs; leaf; leaf = leaf->leafnext)
-	{
-		// don't process solid leafs (it would be nice to process empty before solid)
-		if (leaf->area)
-			continue;
-		//if (!leaf->empty)
-		//	continue;
+	FindAreas(tree);
 
-		//Message("processing leaf %#p\n", leaf);
-
-		// create a new area
-		area_t *area = AllocArea(tree);
-
-		if (leaf->empty)
-			tree->numemptyareas++;
-
-		Walk(area, NULL, leaf);
-	}
+	AddPortalsToAreas(tree);
 
 	Message("%d areas\n", tree->numareas);
 	Message("%d empty areas\n", tree->numemptyareas);
