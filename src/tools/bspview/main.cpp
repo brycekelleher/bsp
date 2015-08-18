@@ -93,6 +93,7 @@ typedef struct bspnode_s
 
 typedef struct portal_s
 {
+	struct portals		*next;
 	struct portal_s		*areanext;
 	bspnode_t		*srcleaf;
 	bspnode_t		*dstleaf;
@@ -115,6 +116,7 @@ typedef struct area_s
 // model data
 static area_t		*areas;
 static bspnode_t	*nodes;
+static portal_t		*portals;
 
 static void LoadNodes(FILE *fp)
 {
@@ -155,6 +157,8 @@ static void LoadNodes(FILE *fp)
 static portal_t *LoadPortal(FILE *fp)
 {
 	portal_t *p = (portal_t*)Mem_Alloc(sizeof(portal_t));
+	p->next = portals;
+	portals = p;
 
 	int srcleaf = ReadInt(fp);
 	p->srcleaf = nodes + srcleaf;
@@ -189,11 +193,11 @@ static void LoadAreas(FILE *fp)
 		{
 			int leafnum = ReadInt(fp);
 			bspnode_t *l = nodes + leafnum;
+			l->area = a;
 			
+			// link into the area list
 			l->areanext = a->leafs;
 			a->leafs = l;
-
-			l->area = a;
 		}
 
 		// read the portals
