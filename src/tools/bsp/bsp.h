@@ -46,22 +46,34 @@ typedef struct mapdata_s
 
 typedef struct portal_s
 {
-	struct portal_s		*globalnext;
+	struct portal_s		*treenext;
 	struct portal_s		*leafnext;
+	struct portal_s		*areanext;
+
 	struct bspnode_s	*srcleaf;
 	struct bspnode_s	*dstleaf;
 	
 	polygon_t		*polygon;
-	bool			areahint;	
+	bool			areahint;
 
 } portal_t;
 
 typedef struct area_s
 {
 	struct area_s		*next;
-	struct bspnode_s	*leafs;
 
+	struct bspnode_s	*leafs;
+	int			numleafs;
+
+	// area portals
+	struct portal_s		*portals;
+	int			numportals;
+
+	// area render surfaces
 	struct trisurf_s	*trisurf;
+
+	// output number
+	int			areanumber;
 
 } area_t;
 
@@ -93,6 +105,9 @@ typedef struct bspnode_s
 
 	// flags
 	bool			empty;
+
+	// output number
+	int			nodenumber;
 	
 } bspnode_t;
 
@@ -107,6 +122,9 @@ typedef struct bsptree_s
 	bspnode_t	*root;
 	bspnode_t	*leafs;
 	
+	portal_t	*portals;
+	int		numportals;
+
 	area_t		*areas;
 	int		numemptyareas;
 	int		numareas;

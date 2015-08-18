@@ -79,9 +79,11 @@ static area_t *AllocArea(bsptree_t *tree)
 static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 {
 	// link this leaf into the area's list of leaves
-	area->leafs = leaf;
 	leaf->areanext = area->leafs;
+	area->leafs = leaf;
+	area->numleafs++;
 
+	// link the area to this leaf
 	leaf->area = area;
 
 	//Message("adding leaf %#p\n", leaf);
@@ -96,6 +98,12 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 		if (portal->areahint)
 			continue;
 
+		// link this portal into the area's list of portals
+		portal->areanext = area->portals;
+		area->portals = portal;
+		area->numportals++;
+
+		// flow into the next leaf
 		Walk(area, portal, portal->dstleaf);
 	}
 }

@@ -111,9 +111,9 @@ void BuildSurfaces(bsptree_t *tree)
 		FilterPolygonIntoLeaf(tree->root, polygon);
 	}
 
-	PrintSurfaces(tree);
+	//PrintSurfaces(tree);
 
-	DebugDumpAreaSurfaces(tree);
+	//DebugDumpAreaSurfaces(tree);
 }
 
 

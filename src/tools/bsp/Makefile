@@ -5,7 +5,7 @@ LD		= clang++
 
 CFLAGS		= -g -ggdb -Wall -pedantic
 CXXFLAGS	= -g -ggdb -Wall -pedantic
-LDFLAGS		= -lm -ggdb
+LDFLAGS		= -lm -g -ggdb
 
 COMMON		= ../../common
 MATHLIB		= ../../common/mathlib

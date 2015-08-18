@@ -1,5 +1,14 @@
 #include "bsp.h"
 
+static int NumberAreasRecursive(area_t *a, int number)
+{
+	if (!a)
+		return number;
+
+	a->areanumber = number++;
+	return NumberAreasRecursive(a->next, number);
+}
+
 static void EmitInt(int i, FILE* fp)
 {
 	WriteBytes(&i, sizeof(int), fp);
@@ -28,61 +37,75 @@ static void EmitBox3(box3 box, FILE *fp)
 	EmitFloat(box.max[2], fp);
 }
 
-static void EmitPolygon(polygon_t *p, FILE *fp)
+static int NumberNodesRecursive(bspnode_t *n, int number)
 {
-	EmitInt(p->numvertices, fp);
+	if (!n)
+		return number;
 
-	for (int i = 0; i < p->numvertices; i++)
-	{
-		EmitFloat(p->vertices[i][0], fp);
-		EmitFloat(p->vertices[i][1], fp);
-		EmitFloat(p->vertices[i][2], fp);
-	}
+	n->nodenumber = number++;
+	number = NumberNodesRecursive(n->children[0], number);
+	number = NumberNodesRecursive(n->children[1], number);
+
+	return number;
 }
 
-static void EmitPortal(portal_t *p, FILE *fp)
-{
-	EmitPolygon(p->polygon, fp);
-}
-
-static void EmitNodePortals(bspnode_t* n, FILE *fp)
-{
-	EmitInt(n->numportals, fp);
-
-	for (portal_t *p = n->portals; p; p = p->leafnext)
-		EmitPortal(p, fp);
-}
-
-// emit nodes in postorder (leaves at start of file)
-static int numnodes = 0;
-static int EmitNode(bspnode_t *n, FILE *fp)
+// emit nodes in pre-order. This order must match how the nodes were numbered
+// an alternative would be to write these out iteratively and fseek to the correct position
+static void EmitNode(bspnode_t *n, FILE *fp)
 {
 	// termination guard
 	if (!n)
-	{
-		return -1;
-	}
-	
-	// emit the children
-	int childnum[2];
-	childnum[0] = EmitNode(n->children[0], fp);
-	childnum[1] = EmitNode(n->children[1], fp);
+		return;
 	
 	// write the node data
 	{
-		EmitInt(childnum[0], fp);
-		EmitInt(childnum[1], fp);
-
 // disable this to check the node linkage
 #if 1
 		EmitPlane(n->plane, fp);
 		EmitBox3(n->box, fp);
-		EmitNodePortals(n, fp);
+		EmitInt((n->area ? n->area->areanumber : -1), fp);
 #endif
 	}
+
+	// emit the child node numbers
+	EmitInt((n->children[0] ? n->children[0]->nodenumber : -1), fp);
+	EmitInt((n->children[1] ? n->children[1]->nodenumber : -1), fp);
+
+	// emit the child nodes
+	EmitNode(n->children[0], fp);
+	EmitNode(n->children[1], fp);
+}
+
+static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
+{
+	EmitInt(tree->numnodes, fp);
+	EmitInt(tree->numleafs, fp);
 	
-	int thisnode = numnodes++;
-	return thisnode;
+	EmitNode(tree->root, fp);
+}
+
+static void EmitPortal(portal_t *p, FILE *fp)
+{
+	EmitInt(p->srcleaf->nodenumber, fp);
+	EmitInt(p->dstleaf->nodenumber, fp);
+
+	polygon_t *polygon = p->polygon;
+	EmitInt(polygon->numvertices, fp);
+	for (int i = 0; i < polygon->numvertices; i++)
+	{
+		EmitFloat(polygon->vertices[i][0], fp);
+		EmitFloat(polygon->vertices[i][1], fp);
+		EmitFloat(polygon->vertices[i][2], fp);
+	}
+}
+
+static void EmitAreaPortals(area_t *a, FILE *fp)
+{
+	portal_t *p;
+
+	EmitInt(a->numportals, fp);
+	for (p = a->portals; p; p = p->treenext)
+		EmitPortal(p, fp);
 }
 
 static void EmitTriSurf(trisurf_t *s, FILE *fp)
@@ -97,26 +120,46 @@ static void EmitTriSurf(trisurf_t *s, FILE *fp)
 	}
 }
 
-static void EmitAreaSurfaces(bsptree_t *tree, FILE *fp)
+static void EmitAreaSurfaces(area_t *a, FILE *fp)
 {
-	for (area_t *a = tree->areas; a; a = a->next)
-	{
-		trisurf_t *s = a->trisurf;
-		if (!s)
-			continue;
+	trisurf_t *s = a->trisurf;
+	if (!s)
+		return;
 
-		EmitTriSurf(s, fp);
-	}
+	EmitTriSurf(s, fp);
+}
+
+
+static void EmitArea(area_t *a, FILE *fp)
+{
+	// emit the leaf numbers
+	EmitInt(a->numleafs, fp);
+	for (bspnode_t *n = a->leafs; n; n = n->areanext)
+		EmitInt(n->nodenumber, fp);
+
+	// emit the area portal
+	EmitAreaPortals(a, fp);
+
+	// emit the render surfaces
+	// EmitAreaSurfaces()
+}
+
+static void EmitAreaBlock(bsptree_t *tree, FILE *fp)
+{
+	EmitInt(tree->numareas, fp);
+	for (area_t *a = tree->areas; a; a = a->next)
+		EmitArea(a, fp);
 }
 
 static void EmitTree(bsptree_t *tree, FILE *fp)
 {
-	EmitInt(tree->numnodes, fp);
-	EmitInt(tree->numleafs, fp);
-	
-	int rootnode = EmitNode(tree->root, fp);
+	NumberNodesRecursive(tree->root, 0);
+	NumberAreasRecursive(tree->areas, 0);
 
-	EmitAreaSurfaces(tree, fp);
+	EmitNodeBlock(tree, fp);
+	EmitAreaBlock(tree, fp);
+	//EmitPortalBlock(tree, fp);
+	//EmitAreaSurfaces(tree, fp);
 }
 
 void WriteBinary(bsptree_t *tree)
@@ -127,3 +170,4 @@ void WriteBinary(bsptree_t *tree)
 	
 	EmitTree(tree, fp);
 }
+

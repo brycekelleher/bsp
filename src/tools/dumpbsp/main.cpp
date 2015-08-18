@@ -58,45 +58,9 @@ float ReadFloat(FILE *fp)
 	return f;
 }
 
-static void DecodePolygonVertices(FILE *fp)
-{
-	int numvertices = ReadInt(fp);
-
-	for (int i = 0; i < numvertices; i++)
-	{
-		float x, y, z;
-		x = ReadFloat(fp);
-		y = ReadFloat(fp);
-		z = ReadFloat(fp);
-
-		printf("vertex %i: %f %f %f\n", i, x, y, z);
-	}
-}
-
-static void DecodePortals(FILE *fp)
-{
-	int numportals = ReadInt(fp);
-
-	for (int i = 0; i < numportals; i++)
-	{
-		printf("decoding portal\n");
-		DecodePolygonVertices(fp);
-	}
-}
-
 static void DecodeNode(int nodenum, FILE *fp)
 {
-	if(nodenum == -1)
-	{
-		return;
-	}
-	
 	printf("node %i:\n", nodenum);
-	
-	int childnum[2];
-	childnum[0] = ReadInt(fp);
-	childnum[1] = ReadInt(fp);
-	printf("children: %i, %i\n", childnum[0], childnum[1]);
 
 	float a, b, c, d;
 	a = ReadFloat(fp);
@@ -115,29 +79,34 @@ static void DecodeNode(int nodenum, FILE *fp)
 	printf("boxmin: %f, %f, %f\n", min[0], min[1], min[2]);
 	printf("boxmax: %f, %f, %f\n", max[0], max[1], max[2]);
 
-	DecodeNode(childnum[0], fp);
-	DecodeNode(childnum[1], fp);
+	int areanum = ReadInt(fp);
+	printf("areanum: %i\n", areanum);
 
-	DecodePortals(fp);
+	int childnum[2];
+	childnum[0] = ReadInt(fp);
+	childnum[1] = ReadInt(fp);
+	printf("children: %i, %i\n", childnum[0], childnum[1]);
 }
 
-static void DecodeTree(FILE *fp)
+static void DecodeNodeBlock(FILE *fp)
 {
-	printf("tree:\n");
-	
 	int numnodes = ReadInt(fp);
 	printf("numnodes: %i\n", numnodes);
-
 	int numleafs = ReadInt(fp);
 	printf("numleafs: %i\n", numleafs);
-	
-	DecodeNode(0, fp);
+
+	for (int i = 0; i < numnodes; i++)
+		DecodeNode(i, fp);
 }
 
-static void DecodeTriSurface(FILE *fp)
+static void DecodePortal(FILE *fp)
 {
-	int numvertices = ReadInt(fp);
+	int srcleaf = ReadInt(fp);
+	printf("srcleaf: %i\n", srcleaf);
+	int dstleaf = ReadInt(fp);
+	printf("dstleaf: %i\n", dstleaf);
 
+	int numvertices = ReadInt(fp);
 	for (int i = 0; i < numvertices; i++)
 	{
 		float x, y, z;
@@ -149,19 +118,50 @@ static void DecodeTriSurface(FILE *fp)
 	}
 }
 
-static void DecodeAreaSurfaces(FILE *fp)
+static void DecodePortalBlock(FILE *fp)
 {
-	DecodeTriSurface(fp);
+	int numportals = ReadInt(fp);
+	printf("numportals: %i\n", numportals);
+
+	for (int i = 0; i < numportals; i++)
+	{
+		printf("decoding portal\n");
+		DecodePortal(fp);
+	}
+}
+
+static void DecodeArea(int areanum, FILE *fp)
+{
+	printf("decoding area %i\n", areanum);
+
+	int numleafs = ReadInt(fp);
+	printf("numleafs: %i\n", numleafs);
+	for (int i = 0; i < numleafs; i++)
+	{
+		int leafnum = ReadInt(fp);
+		printf("%i", leafnum);
+		printf("%c", (i == numleafs - 1 ? '\n' : ':'));
+	}
+
+	DecodePortalBlock(fp);
+}
+
+static void DecodeAreaBlock(FILE *fp)
+{
+	int numareas = ReadInt(fp);
+	printf("numareas: %i\n", numareas);
+
+
+	for (int i = 0; i < numareas; i++)
+		DecodeArea(i, fp);
 }
 
 static void DecodeFile(FILE *fp)
 {
-	DecodeTree(fp);
-
-	//DecodeAreaSurfaces(fp);
+	DecodeNodeBlock(fp);
+	DecodeAreaBlock(fp);
 }
 
-// fixme: move this into another file
 static FILE *OpenFile(const char *filename)
 {
 	FILE *fp;
@@ -182,9 +182,6 @@ static void PrintUsage()
 
 	exit(0);
 }
-
-static void ProcessEnvVars()
-{}
 
 static void ProcessCommandLine(int argc, char *argv[])
 {

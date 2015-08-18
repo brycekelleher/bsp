@@ -1,7 +1,5 @@
 #include "bsp.h"
 
-static portal_t *globalportals;
-
 // walk to the root
 static void WalkToRoot(bspnode_t *node, bspnode_t *prev)
 {
@@ -97,7 +95,7 @@ static polygon_t *PolygonForPlane(plane_t plane, float usize, float vsize)
 	return p;
 }
 
-static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf, bool areahint)
+static void AddPortalToLeaf(bsptree_t *tree, bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *dstleaf, bool areahint)
 {
 	portal_t *portal;
 	
@@ -113,12 +111,13 @@ static void AddPortalToLeaf(bspnode_t *srcleaf, polygon_t *polygon, bspnode_t *d
 	srcleaf->portals = portal;
 	srcleaf->numportals++;
 	
-	// link into the global list
-	portal->globalnext = globalportals;
-	globalportals = portal;
+	// link into the tree list
+	portal->treenext = tree->portals;
+	tree->portals = portal;
+	tree->numportals++;
 }
 
-static void PushPortalIntoTreeRecursive(bspnode_t *node, polygon_t *polygon, bspnode_t *srcleaf, bool areahint)
+static void PushPortalIntoTreeRecursive(bsptree_t *tree, bspnode_t *node, polygon_t *polygon, bspnode_t *srcleaf, bool areahint)
 {
 	if (!node->children[0] && !node->children[1])
 	{
@@ -128,7 +127,7 @@ static void PushPortalIntoTreeRecursive(bspnode_t *node, polygon_t *polygon, bsp
 		
 		// this portal has landed in a leaf node that's not the leaf the source portal came from
 		// this means a connection exists from srcleaf to this node
-		AddPortalToLeaf(srcleaf, polygon, node, areahint);
+		AddPortalToLeaf(tree, srcleaf, polygon, node, areahint);
 
 		return;
 	}
@@ -136,23 +135,23 @@ static void PushPortalIntoTreeRecursive(bspnode_t *node, polygon_t *polygon, bsp
 	int side = Polygon_OnPlaneSide(polygon, node->plane, CLIP_EPSILON);
 	
 	if (side == PLANE_SIDE_FRONT)
-		PushPortalIntoTreeRecursive(node->children[0], polygon, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[0], polygon, srcleaf, areahint);
 	else if (side == PLANE_SIDE_BACK)
-		PushPortalIntoTreeRecursive(node->children[1], polygon, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[1], polygon, srcleaf, areahint);
 	else if (side == PLANE_SIDE_ON)
 	{
 		polygon_t *f, *b;
 		f = Polygon_Copy(polygon);
 		b = Polygon_Copy(polygon);
-		PushPortalIntoTreeRecursive(node->children[0], f, srcleaf, areahint);
-		PushPortalIntoTreeRecursive(node->children[1], b, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[0], f, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[1], b, srcleaf, areahint);
 	}
 	else if (side == PLANE_SIDE_CROSS)
 	{
 		polygon_t *f, *b;
 		Polygon_SplitWithPlane(polygon, node->plane, CLIP_EPSILON, &f, &b);
-		PushPortalIntoTreeRecursive(node->children[0], f, srcleaf, areahint);
-		PushPortalIntoTreeRecursive(node->children[1], b, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[0], f, srcleaf, areahint);
+		PushPortalIntoTreeRecursive(tree, node->children[1], b, srcleaf, areahint);
 	}
 }
 
@@ -162,7 +161,7 @@ static void PushPortalIntoTree(bsptree_t *tree, polygon_t *polygon, bspnode_t *s
 	if (!polygon)
 		return;
 
-	PushPortalIntoTreeRecursive(tree->root, polygon, srcleaf, areahint);
+	PushPortalIntoTreeRecursive(tree, tree->root, polygon, srcleaf, areahint);
 }
 
 // walk up the tree from leaf to root and clip the polygon in place
@@ -277,7 +276,7 @@ static void ProcessLeaf(bsptree_t *tree, bspnode_t *leaf)
 void BuildPortals(bsptree_t *tree)
 {
 	Message("Portalizing tree\n");
-	
+
 	for(bspnode_t *l = tree->leafs; l; l = l->leafnext)
 		ProcessLeaf(tree, l);
 	
