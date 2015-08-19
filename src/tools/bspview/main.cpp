@@ -479,6 +479,10 @@ static void SimulationTick()
 static int renderwidth;
 static int renderheight;
 
+static float view[4][4];
+static float projection[4][4];
+static float viewprojection[4][4];
+
 static void MatrixTranspose(float out[4][4], const float in[4][4])
 {
 	for( int i = 0; i < 4; i++ )
@@ -589,6 +593,57 @@ static void SetPerspectiveMatrix()
 
 	glMatrixMode(GL_PROJECTION);
 	GL_LoadMatrix(m);
+}
+
+void MatrixMultiply(const float r[4][4], const float a[4][4], const float b[4][4])
+{
+	r[0][0] = a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0] + a[0][3] * b[3][0];
+	r[0][1] = a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1] + a[0][3] * b[3][1];
+	r[0][2] = a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2] + a[0][3] * b[3][2];
+	r[0][3] = a[0][0] * b[0][3] + a[0][1] * b[1][3] + a[0][2] * b[2][3] + a[0][3] * b[3][3];
+
+	r[1][0] = a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0] + a[1][3] * b[3][0];
+	r[1][1] = a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1] + a[1][3] * b[3][1];
+	r[1][2] = a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2] + a[1][3] * b[3][2];
+	r[1][2] = a[1][0] * b[0][3] + a[1][1] * b[1][3] + a[1][2] * b[2][3] + a[1][3] * b[3][3];
+
+	r[2][0] = a[2][0] * b[0][0] + a[2][1] * b[1][0] + a[2][2] * b[2][0] + a[2][3] * b[3][0];
+	r[2][1] = a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1] + a[2][3] * b[3][1];
+	r[2][2] = a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2] + a[2][3] * b[3][2];
+	r[2][3] = a[2][0] * b[0][3] + a[2][1] * b[1][3] + a[2][2] * b[2][3] + a[2][3] * b[3][3];
+
+	r[3][0] = a[3][0] * b[0][0] + a[3][1] * b[1][0] + a[3][2] * b[2][0] + a[3][3] * b[3][0];
+	r[3][1] = a[3][0] * b[0][1] + a[3][1] * b[1][1] + a[3][2] * b[2][1] + a[3][3] * b[3][1];
+	r[3][2] = a[3][0] * b[0][2] + a[3][1] * b[1][2] + a[3][2] * b[2][2] + a[3][3] * b[3][2];
+	r[3][3] = a[3][0] * b[0][3] + a[3][1] * b[1][3] + a[3][2] * b[2][3] + a[3][3] * b[3][3];
+}
+
+
+
+// assumes that the bottom row of the matrix will produce a 1
+void VertexTransform(const float r[3], const float m[4][4] const float v[3])
+{
+	r[0] = v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2] + m[0][3];
+	r[1] = v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2] + m[1][3];
+	r[2] = v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2] + m[2][3];
+}
+
+
+
+//portal code
+void IntersectionOfBoxes()
+{
+	// for the minimum axis, take the max of the minumums
+	// for the maxumum axis, take the min of the maximums
+
+	// test if the box is actually valid
+}
+
+void ProjectPortal(portal_t *p)
+{
+	for (int i = 0; i < portal->numvertices; i++)
+	{
+		p->vertex[i]
 }
 
 static void DrawAxis()
