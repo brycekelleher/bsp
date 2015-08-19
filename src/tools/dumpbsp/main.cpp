@@ -130,6 +130,34 @@ static void DecodePortalBlock(FILE *fp)
 	}
 }
 
+static void DecodeAreaSurface(FILE *fp)
+{
+	int numvertices = ReadInt(fp);
+	printf("numvertices %i\n", numvertices);
+
+	for (int i = 0; i < numvertices; i++)
+	{
+		float x, y, z;
+		x = ReadFloat(fp);
+		y = ReadFloat(fp);
+		z = ReadFloat(fp);
+
+		printf("vertex %i: %f %f %f\n", i, x, y, z);
+	}
+}
+
+static void DecodeAreaSurfaces(FILE *fp)
+{
+	int numsurfaces = ReadInt(fp);
+	printf("numsurfaces: %i\n", numsurfaces);
+
+	for (int i = 0; i < numsurfaces; i++)
+	{
+		printf("decoding area surface\n");
+		DecodeAreaSurface(fp);
+	}
+}
+
 static void DecodeArea(int areanum, FILE *fp)
 {
 	printf("decoding area %i\n", areanum);
@@ -145,6 +173,8 @@ static void DecodeArea(int areanum, FILE *fp)
 	}
 
 	DecodePortalBlock(fp);
+
+	DecodeAreaSurfaces(fp);
 }
 
 static void DecodeAreaBlock(FILE *fp)

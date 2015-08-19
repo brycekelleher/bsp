@@ -124,8 +124,12 @@ static void EmitAreaSurfaces(area_t *a, FILE *fp)
 {
 	trisurf_t *s = a->trisurf;
 	if (!s)
+	{
+		EmitInt(0, fp);
 		return;
+	}
 
+	EmitInt(1, fp);
 	EmitTriSurf(s, fp);
 }
 
@@ -141,7 +145,7 @@ static void EmitArea(area_t *a, FILE *fp)
 	EmitAreaPortals(a, fp);
 
 	// emit the render surfaces
-	// EmitAreaSurfaces()
+	EmitAreaSurfaces(a, fp);
 }
 
 static void EmitAreaBlock(bsptree_t *tree, FILE *fp)

@@ -80,6 +80,25 @@ float ReadFloat(FILE *fp)
 	return f;
 }
 
+typedef struct surfvertex_s
+{
+	vec3		xyz;
+
+} surfvertex_t;
+
+// a triangle surface
+typedef struct surf_s
+{
+	struct surf_s*	next;
+
+	int		numvertices;
+	surfvertex_t	*vertices;
+
+	//int		numindicies;
+	//surfvertex_t	*indicies;
+
+} surf_t;
+
 typedef struct bspnode_s
 {
 	plane_t		plane;
@@ -93,7 +112,7 @@ typedef struct bspnode_s
 
 typedef struct portal_s
 {
-	struct portals		*next;
+	struct portal_s		*next;
 	struct portal_s		*areanext;
 	bspnode_t		*srcleaf;
 	bspnode_t		*dstleaf;
@@ -110,6 +129,9 @@ typedef struct area_s
 
 	int		numleafs;
 	bspnode_t	*leafs;
+
+	int		numsurfaces;
+	surf_t		*surfaces;
 
 } area_t;
 
@@ -142,7 +164,7 @@ static void LoadNodes(FILE *fp)
 		n->box.max[1] = ReadFloat(fp);
 		n->box.max[2] = ReadFloat(fp);
 
-		// fixme: a -1 areanum give a bad pointer
+		// fixme: a -1 areanum gives a bad pointer
 		int areanum = ReadInt(fp);
 		n->area = areas + areanum;
 
@@ -176,6 +198,23 @@ static portal_t *LoadPortal(FILE *fp)
 	}
 
 	return p;
+}
+
+static surf_t *LoadSurface(FILE *fp)
+{
+	surf_t *s = (surf_t*)Mem_Alloc(sizeof(surf_t));
+
+	s->numvertices = ReadInt(fp);
+	s->vertices = (surfvertex_t*)Mem_Alloc(s->numvertices * sizeof(surfvertex_t));
+
+	for (int i = 0; i < s->numvertices; i++)
+	{
+		s->vertices[i].xyz[0] = ReadFloat(fp);
+		s->vertices[i].xyz[1] = ReadFloat(fp);
+		s->vertices[i].xyz[2] = ReadFloat(fp);
+	}
+
+	return s;
 }
 
 static void LoadAreas(FILE *fp)
@@ -212,6 +251,17 @@ static void LoadAreas(FILE *fp)
 
 			// fixme: link into the tree list?
 		}
+
+		// read the area surfaces
+		a->numsurfaces = ReadInt(fp);
+		for (int j = 0; j < a->numsurfaces; j++)
+		{
+			surf_t *s = LoadSurface(fp);
+
+			// link the surface into the area list
+			s->next = a->surfaces;
+			a->surfaces = a->surfaces;
+		}
 	}
 }
 
@@ -221,9 +271,6 @@ static void LoadModel(FILE *fp)
 	LoadAreas(fp);
 }
 
-//
-// Main
-//
 int main(int argc, char *argv[])
 {
 	if (argc == 1)
