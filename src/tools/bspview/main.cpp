@@ -23,6 +23,16 @@ int ReadFile(const char* filename, void **data);
 void WriteBytes(void *data, int numbytes, FILE *fp);
 int ReadBytes(void *buf, int numbytes, FILE *fp);
 
+static float Max(float a, float b)
+{
+	return (a > b ? a : b);
+}
+
+static float Min(float a, float b)
+{
+	return (a < b ? a : b);
+}
+
 // ==============================================
 // memory allocation
 
@@ -257,14 +267,6 @@ static surf_t *LoadSurface(FILE *fp)
 
 	CalculateNormals(s);
 
-	for (int i = 0; i < s->numvertices; i++)
-	{
-		s->vertices[i].color[0] = 0.5f + 0.5f * s->vertices[i].normal[0];
-		s->vertices[i].color[1] = 0.5f + 0.5f * s->vertices[i].normal[1];
-		s->vertices[i].color[2] = 0.5f + 0.5f * s->vertices[i].normal[2];
-		s->vertices[i].color[3] = 1.0f;
-	}
-
 	return s;
 }
 
@@ -343,9 +345,8 @@ static inputstate_t input;
 
 typedef struct viewstate_s
 {
-	float	angles[2];
+	float	angles[3];
 	float	pos[3];
-	float	vectors[3][3];
 
 	float	znear;
 	float	zfar;
@@ -359,7 +360,8 @@ typedef struct tickcmd_s
 {
 	float	forwardmove;
 	float	sidemove;
-	float	anglemove[2];
+	float	upmove;
+	float	anglemove[3];
 
 } tickcmd_t;
 
@@ -368,8 +370,9 @@ static tickcmd_t gcmd;
 static void SetupDefaultViewState()
 {
 	// look down negative z
-	viewstate.angles[0]	= PI / 2.0f;
-	viewstate.angles[1]	= 0.0f;
+	viewstate.angles[0]	= 0.0f;
+	viewstate.angles[1]	= PI / 2.0f;
+	viewstate.angles[2]	= 0.0f;
 	
 	viewstate.pos[0]	= 0.0f;
 	viewstate.pos[1]	= 0.0f;
@@ -384,12 +387,12 @@ static void VectorsFromSphericalAngles(float vectors[3][3], float angles[2])
 {
 	float cx, sx, cy, sy, cz, sz;
 
-	cx = 1.0f;
-	sx = 0.0f;
-	cy = cosf(angles[0]);
-	sy = sinf(angles[0]);
-	cz = cosf(angles[1]);
-	sz = sinf(angles[1]);
+	cx = cosf(angles[0]);
+	sx = sinf(angles[0]);
+	cy = cosf(angles[1]);
+	sy = sinf(angles[1]);
+	cz = cosf(angles[2]);
+	sz = sinf(angles[2]);
 
 	vectors[0][0] = cy * cz;
 	vectors[0][1] = sz;
@@ -417,8 +420,10 @@ static void BuildTickCmd()
 
 	cmd->forwardmove = 0.0f;
 	cmd->sidemove = 0.0f;
+	cmd->upmove = 0.0f;
 	cmd->anglemove[0] = 0.0f;
 	cmd->anglemove[1] = 0.0f;
+	cmd->anglemove[2] = 0.0f;
 
 	if (input.keys['w'])
 		cmd->forwardmove += scale;
@@ -428,12 +433,16 @@ static void BuildTickCmd()
 		cmd->sidemove += scale;
 	if (input.keys['a'])
 		cmd->sidemove -= scale;
+	if (input.keys['f'])
+		cmd->upmove += scale;
+	if (input.keys['v'])
+		cmd->upmove -= scale;
 
 	// handle mouse movement
 	if(input.lbuttondown)
 	{
-		cmd->anglemove[0] = -0.01f * (float)input.moused[0];
-		cmd->anglemove[1] = -0.01f * (float)input.moused[1];
+		cmd->anglemove[1] = -0.01f * (float)input.moused[0];
+		cmd->anglemove[2] = -0.01f * (float)input.moused[1];
 	}
 }
 
@@ -442,23 +451,29 @@ static void DoMove()
 {
 	tickcmd_t *cmd = &gcmd;
 
-	VectorsFromSphericalAngles(viewstate.vectors, viewstate.angles);
+	float vectors[3][3];
+	VectorsFromSphericalAngles(vectors, viewstate.angles);
 
-	viewstate.pos[0] += cmd->forwardmove * viewstate.vectors[0][0];
-	viewstate.pos[1] += cmd->forwardmove * viewstate.vectors[0][1];
-	viewstate.pos[2] += cmd->forwardmove * viewstate.vectors[0][2];
+	viewstate.pos[0] += cmd->forwardmove * vectors[0][0];
+	viewstate.pos[1] += cmd->forwardmove * vectors[0][1];
+	viewstate.pos[2] += cmd->forwardmove * vectors[0][2];
 
-	viewstate.pos[0] += cmd->sidemove * viewstate.vectors[2][0];
-	viewstate.pos[1] += cmd->sidemove * viewstate.vectors[2][1];
-	viewstate.pos[2] += cmd->sidemove * viewstate.vectors[2][2];
+	viewstate.pos[0] += cmd->sidemove * vectors[2][0];
+	viewstate.pos[1] += cmd->sidemove * vectors[2][1];
+	viewstate.pos[2] += cmd->sidemove * vectors[2][2];
+
+	viewstate.pos[0] += cmd->upmove * vectors[2][0];
+	viewstate.pos[1] += cmd->upmove * vectors[2][1];
+	viewstate.pos[2] += cmd->upmove * vectors[2][2];
 
 	viewstate.angles[0] += cmd->anglemove[0];
 	viewstate.angles[1] += cmd->anglemove[1];
+	viewstate.angles[2] += cmd->anglemove[2];
 
-	if(viewstate.angles[1] >= PI / 2.0f)
-		viewstate.angles[1] = (PI / 2.0f) - 0.001f;
-	if(viewstate.angles[1] <= -PI/ 2.0f)
-		viewstate.angles[1] = (-PI / 2.0f) + 0.001f;
+	if(viewstate.angles[2] >= PI / 2.0f)
+		viewstate.angles[2] = (PI / 2.0f) - 0.001f;
+	if(viewstate.angles[2] <= -PI/ 2.0f)
+		viewstate.angles[2] = (-PI / 2.0f) + 0.001f;
 }
 
 static void SimulationTick()
@@ -473,16 +488,204 @@ static void SimulationTick()
 //==============================================
 // OpenGL rendering code
 //
+
 // this stuff touches some of the simulation state (viewvectors, viewpos etc)
 // guess it should really have an interface to extract that data?
 
-static int renderwidth;
-static int renderheight;
+// the global renderstate
+typedef struct rs_s
+{
+	int	renderwidth;
+	int	renderheight;
 
-static float view[4][4];
-static float projection[4][4];
-static float viewprojection[4][4];
+	float	fov;
+	float	znear, zfar;
 
+	// view position and view vectors
+	float	pos[3];
+	float	viewvectors[3][3];
+
+	// derived values
+	float	view[4][4];
+	float	projection[4][4];
+	float	clip[4][4];
+
+} rs_t;
+
+static rs_t	rs;
+
+// draw buffer
+typedef struct drawvertex_s
+{
+	float	xyz[3];
+	float	normal[3];
+	float	color[4];
+
+} drawvertex_t;
+
+typedef struct drawbuffer_s
+{
+	int numvertices;
+	drawvertex_t *vertices;
+
+} drawbuffer_t;
+
+static drawbuffer_t drawbuffer;
+
+
+static void CalculateNormalsAsColors(drawbuffer_t *b)
+{
+	for (int i = 0; i < b->numvertices; i++)
+	{
+		b->vertices[i].color[0] = 0.5f + 0.5f * b->vertices[i].normal[0];
+		b->vertices[i].color[1] = 0.5f + 0.5f * b->vertices[i].normal[1];
+		b->vertices[i].color[2] = 0.5f + 0.5f * b->vertices[i].normal[2];
+		b->vertices[i].color[3] = 1.0f;
+	}
+}
+
+static void CalculateLighting(drawbuffer_t *b)
+{
+	for (int i = 0; i < b->numvertices; i += 3)
+	{
+		vec3 v		= Vec3FromFloat(rs.viewvectors[0]);
+		vec3 n		= Vec3FromFloat(b->vertices[i].normal);
+		vec3 l		= -v;
+		float ndotl	= Max(Dot(n, l), 0.0f);
+
+		// scale and bias the color slightly
+		ndotl		= 0.6 * ndotl + 0.4;
+
+		// scale the color by the 'color'
+		ndotl		= 0.75f * ndotl;
+
+		for (int j = 0; j < 3; j++)
+		{
+			b->vertices[i + j].color[0] = ndotl;
+			b->vertices[i + j].color[1] = ndotl;
+			b->vertices[i + j].color[2] = ndotl;
+			b->vertices[i + j].color[3] = 1.0f;
+		}
+	}
+}
+
+static void DrawBuffer(drawbuffer_t *b)
+{
+	glVertexPointer(3, GL_FLOAT, sizeof(drawvertex_t), b->vertices->xyz);
+	glNormalPointer(GL_FLOAT, sizeof(drawvertex_t), b->vertices->normal);
+	glColorPointer(4, GL_FLOAT, sizeof(drawvertex_t), b->vertices->color);
+
+	glDrawArrays(GL_TRIANGLES, 0, b->numvertices);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+}
+
+// copy the vertex data in to the drawbuffer
+static void CopySurface(drawbuffer_t *b, surf_t *s, int numvertices)
+{
+	if (!b->vertices)
+		b->vertices = (drawvertex_t*)malloc(1024 * 1024 * sizeof(drawvertex_t));
+
+	int base = b->numvertices;
+	for (int i = 0; i < s->numvertices; i++)
+	{
+		b->vertices[base + i].xyz[0] = s->vertices[i].xyz[0];
+		b->vertices[base + i].xyz[1] = s->vertices[i].xyz[1];
+		b->vertices[base + i].xyz[2] = s->vertices[i].xyz[2];
+
+		b->vertices[base + i].normal[0] = s->vertices[i].normal[0];
+		b->vertices[base + i].normal[1] = s->vertices[i].normal[1];
+		b->vertices[base + i].normal[2] = s->vertices[i].normal[2];
+
+		b->vertices[base + i].color[0] = s->vertices[i].color[0];
+		b->vertices[base + i].color[1] = s->vertices[i].color[1];
+		b->vertices[base + i].color[2] = s->vertices[i].color[2];
+		b->numvertices++;
+	}
+}
+
+static void SetupDrawBuffer(drawbuffer_t *b)
+{
+	// flush the drawbuffer
+	b->numvertices = 0;
+
+	for (int i = 0; i < numareas; i++)
+	{
+		area_t *a = areas + i;
+
+		if (!a->surfaces)
+			continue;
+
+		CopySurface(b, a->surfaces, a->surfaces->numvertices);
+	}
+}
+
+static void DrawWireframe(drawbuffer_t *b)
+{
+	static float white[] = { 1, 1, 1 };
+	static float black[] = { 0, 0, 0 };
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	// draw solid color
+	glColor3fv(white);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	DrawBuffer(b);
+
+	// draw wireframe outline
+	glColor3fv(black);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(-1, -2);
+	DrawBuffer(b);
+	glDisable(GL_POLYGON_OFFSET_FILL);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+}
+
+static void DrawNormalsAsColors(drawbuffer_t *b)
+{
+	CalculateNormalsAsColors(b);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	DrawBuffer(b);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+}
+
+static void DrawLit(drawbuffer_t *b)
+{
+	CalculateLighting(b);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+
+	DrawBuffer(b);
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+}
+
+
+static void MatrixMultiply(float out[4][4], const float a[4][4], const float b[4][4])
+{
+	for( int i = 0; i < 4; i++ )
+	{
+		for( int j = 0; j < 4; j++ )
+		{
+			out[i][j] = 0.0f;
+			for (int k = 0; k < 4; k++)
+				out[i][j] += a[i][k] * b[k][j];
+		}
+	}
+}
 static void MatrixTranspose(float out[4][4], const float in[4][4])
 {
 	for( int i = 0; i < 4; i++ )
@@ -516,7 +719,12 @@ static void GL_MultMatrixTranspose(float m[4][4])
 	glMultMatrixf((float*)t);
 }
 
-static void SetModelViewMatrix()
+static void SetupViewVectors()
+{
+	VectorsFromSphericalAngles(rs.viewvectors, viewstate.angles);
+}
+
+static void SetupModelViewMatrix()
 {
 	// matrix to transform from look down x to looking down -z
 	static float yrotate[4][4] =
@@ -528,71 +736,97 @@ static void SetModelViewMatrix()
 	};
 
 	float matrix[4][4];
-	matrix[0][0]	= viewstate.vectors[0][0];
-	matrix[0][1]	= viewstate.vectors[0][1];
-	matrix[0][2]	= viewstate.vectors[0][2];
-	matrix[0][3]	= -(viewstate.vectors[0][0] * viewstate.pos[0]) - (viewstate.vectors[0][1] * viewstate.pos[1]) - (viewstate.vectors[0][2] * viewstate.pos[2]);
+	matrix[0][0]	= rs.viewvectors[0][0];
+	matrix[0][1]	= rs.viewvectors[0][1];
+	matrix[0][2]	= rs.viewvectors[0][2];
+	matrix[0][3]	= -(rs.viewvectors[0][0] * rs.pos[0]) - (rs.viewvectors[0][1] * rs.pos[1]) - (rs.viewvectors[0][2] * rs.pos[2]);
 
-	matrix[1][0]	= viewstate.vectors[1][0];
-	matrix[1][1]	= viewstate.vectors[1][1];
-	matrix[1][2]	= viewstate.vectors[1][2];
-	matrix[1][3]	= -(viewstate.vectors[1][0] * viewstate.pos[0]) - (viewstate.vectors[1][1] * viewstate.pos[1]) - (viewstate.vectors[1][2] * viewstate.pos[2]);
+	matrix[1][0]	= rs.viewvectors[1][0];
+	matrix[1][1]	= rs.viewvectors[1][1];
+	matrix[1][2]	= rs.viewvectors[1][2];
+	matrix[1][3]	= -(rs.viewvectors[1][0] * rs.pos[0]) - (rs.viewvectors[1][1] * rs.pos[1]) - (rs.viewvectors[1][2] * rs.pos[2]);
 
-	matrix[2][0]	= viewstate.vectors[2][0];
-	matrix[2][1]	= viewstate.vectors[2][1];
-	matrix[2][2]	= viewstate.vectors[2][2];
-	matrix[2][3]	= -(viewstate.vectors[2][0] * viewstate.pos[0]) - (viewstate.vectors[2][1] * viewstate.pos[1]) - (viewstate.vectors[2][2] * viewstate.pos[2]);
+	matrix[2][0]	= rs.viewvectors[2][0];
+	matrix[2][1]	= rs.viewvectors[2][1];
+	matrix[2][2]	= rs.viewvectors[2][2];
+	matrix[2][3]	= -(rs.viewvectors[2][0] * rs.pos[0]) - (rs.viewvectors[2][1] * rs.pos[1]) - (rs.viewvectors[2][2] * rs.pos[2]);
 
 	matrix[3][0]	= 0.0f;
 	matrix[3][1]	= 0.0f;
 	matrix[3][2]	= 0.0f;
 	matrix[3][3]	= 1.0f;
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	GL_MultMatrixTranspose(yrotate);
-	GL_MultMatrixTranspose(matrix);
+	MatrixMultiply(rs.view, yrotate, matrix);
 }
 
-static void SetPerspectiveMatrix()
+static void SetupProjectionMatrix()
 {
 	float r, l, t, b;
 	float fovx, fovy;
-	float m[4][4];
 
-	fovx = viewstate.fov * (PI / 360.0f);
-	float x = (renderwidth / 2.0f) / atan(fovx);
-	fovy = atan2(renderheight / 2.0f, x);
+	fovx = rs.fov * (PI / 360.0f);
+	float x = (rs.renderwidth / 2.0f) / atan(fovx);
+	fovy = atan2(rs.renderheight / 2.0f, x);
 
 	// Calcuate right, left, top and bottom values
-	r = viewstate.znear * fovx;
+	r = rs.znear * fovx;
 	l = -r;
 
-	t = viewstate.znear * fovy;
+	t = rs.znear * fovy;
 	b = -t;
 
-	m[0][0] = (2.0f * viewstate.znear) / (r - l);
-	m[1][0] = 0;
-	m[2][0] = (r + l) / (r - l);
-	m[3][0] = 0;
+	rs.projection[0][0] = (2.0f * rs.znear) / (r - l);
+	rs.projection[0][1] = 0;
+	rs.projection[0][2] = (r + l) / (r - l);
+	rs.projection[0][3] = 0;
 
-	m[0][1] = 0;
-	m[1][1] = (2.0f * viewstate.znear) / (t - b);
-	m[2][1] = (t + b) / (t - b);
-	m[3][1] = 0;
+	rs.projection[1][0] = 0;
+	rs.projection[1][1] = (2.0f * rs.znear) / (t - b);
+	rs.projection[1][2] = (t + b) / (t - b);
+	rs.projection[1][3] = 0;
 
-	m[0][2] = 0;
-	m[1][2] = 0;
-	m[2][2] = -(viewstate.zfar + viewstate.znear) / (viewstate.zfar - viewstate.znear);
-	m[3][2] = -2.0f * viewstate.zfar * viewstate.znear / (viewstate.zfar - viewstate.znear);
+	rs.projection[2][0] = 0;
+	rs.projection[2][1] = 0;
+	rs.projection[2][2] = -(rs.zfar + rs.znear) / (rs.zfar - rs.znear);
+	rs.projection[2][3] = -2.0f * rs.zfar * rs.znear / (rs.zfar - rs.znear);
 
-	m[0][3] = 0;
-	m[1][3] = 0;
-	m[2][3] = -1;
-	m[3][3] = 0;
+	rs.projection[3][0] = 0;
+	rs.projection[3][1] = 0;
+	rs.projection[3][2] = -1;
+	rs.projection[3][3] = 0;
+}
+
+static void SetupGLMatrixState()
+{
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	GL_LoadMatrixTranspose(rs.view);
 
 	glMatrixMode(GL_PROJECTION);
-	GL_LoadMatrix(m);
+	glLoadIdentity();
+	GL_LoadMatrixTranspose(rs.projection);
+}
+
+static void SetupMatrices()
+{
+	rs.znear	= viewstate.znear;
+	rs.zfar		= viewstate.zfar;
+	rs.fov		= viewstate.fov;
+
+	rs.pos[0]	= viewstate.pos[0];
+	rs.pos[1]	= viewstate.pos[1];
+	rs.pos[2]	= viewstate.pos[2];
+
+	SetupViewVectors();
+
+	SetupModelViewMatrix();
+
+	SetupProjectionMatrix();
+
+	SetupGLMatrixState();
+
+	// build the clip matrix
+	MatrixMultiply(rs.clip, rs.projection, rs.view);
 }
 
 #if 0
@@ -710,99 +944,20 @@ static void DrawPortals()
 		DrawPortal(p);
 }
 
-static float Max(float a, float b)
+static void DrawWorld()
 {
-	return (a > b ? a : b);
-}
+	SetupDrawBuffer(&drawbuffer);
 
-static float Min(float a, float b)
-{
-	return (a < b ? a : b);
-}
-
-static void CalculateLighting(surf_t *s)
-{
-	for (int i = 0; i < s->numvertices; i += 3)
-	{
-		vec3 normal	= Vec3FromFloat(s->vertices[i].normal);
-		vec3 view	= Vec3FromFloat(viewstate.vectors[0]);
-		vec3 l		= -view;
-		float ndotl	= Max(Dot(normal, l), 0.0f);
-
-		// scale and bias the color slightly
-		ndotl		= 0.6 * ndotl + 0.4;
-
-		for (int j = 0; j < 3; j++)
-		{
-			s->vertices[i + j].color[0] = ndotl;
-			s->vertices[i + j].color[1] = ndotl;
-			s->vertices[i + j].color[2] = ndotl;
-			//s->vertices[i + j].color[0] = 0.5f + 0.5f * normal[0];
-			//s->vertices[i + j].color[1] = 0.5f + 0.5f * normal[1];
-			//s->vertices[i + j].color[2] = 0.5f + 0.5f * normal[2];
-			s->vertices[i + j].color[3] = 1.0f;
-		}
-	}
-}
-
-static void DrawSurface(surf_t *s)
-{
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-
-	CalculateLighting(s);
-
-	glVertexPointer(3, GL_FLOAT, sizeof(surfvertex_t), s->vertices->xyz);
-	glColorPointer(4, GL_FLOAT, sizeof(surfvertex_t), s->vertices->color);
-
-	glDrawArrays(GL_TRIANGLES, 0, s->numvertices);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-}
-
-static void DrawSurfaces()
-{
-	for (int i = 0; i < numareas; i++)
-	{
-		area_t *a = areas + i;
-
-		if (!a->surfaces)
-			continue;
-
-		DrawSurface(a->surfaces);
-	}
-}
-
-static void DrawSurfacesWireframe()
-{
-	static float white[] = { 1, 1, 1 };
-	static float black[] = { 0, 0, 0 };
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-
-	// draw solid color
-	glColor3fv(white);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	DrawSurfaces();
-
-	// draw wireframe outline
-	glColor3fv(black);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glEnable(GL_POLYGON_OFFSET_FILL);
-	glPolygonOffset(-1, -2);
-	DrawSurfaces();
-	glDisable(GL_POLYGON_OFFSET_FILL);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
+	//DrawWireframe(&drawbuffer);
+	//DrawNormalsAsColors(&drawbuffer);
+	DrawLit(&drawbuffer);
 }
 
 static void Draw()
 {
 	DrawAxis();
 
-	DrawSurfaces();
+	DrawWorld();
 
 	DrawPortals();
 }
@@ -815,11 +970,7 @@ static void BeginFrame()
 	glFrontFace(GL_CCW);
 	glEnable(GL_CULL_FACE);
 
-	SetModelViewMatrix();
-
-	SetPerspectiveMatrix();
-
-	glViewport(0, 0, renderwidth, renderheight);
+	SetupMatrices();
 }
 
 static void EndFrame()
@@ -868,8 +1019,10 @@ static void KeyboardUpFunc(unsigned char key, int x, int y)
 
 static void ReshapeFunc(int w, int h)
 {
-	renderwidth = w;
-	renderheight = h;
+	rs.renderwidth = w;
+	rs.renderheight = h;
+
+	glViewport(0, 0, rs.renderwidth, rs.renderheight);
 }
 
 static void MouseFunc(int button, int state, int x, int y)
