@@ -532,7 +532,6 @@ typedef struct drawbuffer_s
 
 static drawbuffer_t drawbuffer;
 
-
 static void CalculateNormalsAsColors(drawbuffer_t *b)
 {
 	for (int i = 0; i < b->numvertices; i++)
@@ -829,44 +828,46 @@ static void SetupMatrices()
 	MatrixMultiply(rs.clip, rs.projection, rs.view);
 }
 
-#if 0
-void MatrixMultiply(const float r[4][4], const float a[4][4], const float b[4][4])
+// portal visibility code
+static void TransformPortalVertex(float out[3], float m[4][4], float in[3])
 {
-	r[0][0] = a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0] + a[0][3] * b[3][0];
-	r[0][1] = a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1] + a[0][3] * b[3][1];
-	r[0][2] = a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2] + a[0][3] * b[3][2];
-	r[0][3] = a[0][0] * b[0][3] + a[0][1] * b[1][3] + a[0][2] * b[2][3] + a[0][3] * b[3][3];
-
-	r[1][0] = a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0] + a[1][3] * b[3][0];
-	r[1][1] = a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1] + a[1][3] * b[3][1];
-	r[1][2] = a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2] + a[1][3] * b[3][2];
-	r[1][2] = a[1][0] * b[0][3] + a[1][1] * b[1][3] + a[1][2] * b[2][3] + a[1][3] * b[3][3];
-
-	r[2][0] = a[2][0] * b[0][0] + a[2][1] * b[1][0] + a[2][2] * b[2][0] + a[2][3] * b[3][0];
-	r[2][1] = a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1] + a[2][3] * b[3][1];
-	r[2][2] = a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2] + a[2][3] * b[3][2];
-	r[2][3] = a[2][0] * b[0][3] + a[2][1] * b[1][3] + a[2][2] * b[2][3] + a[2][3] * b[3][3];
-
-	r[3][0] = a[3][0] * b[0][0] + a[3][1] * b[1][0] + a[3][2] * b[2][0] + a[3][3] * b[3][0];
-	r[3][1] = a[3][0] * b[0][1] + a[3][1] * b[1][1] + a[3][2] * b[2][1] + a[3][3] * b[3][1];
-	r[3][2] = a[3][0] * b[0][2] + a[3][1] * b[1][2] + a[3][2] * b[2][2] + a[3][3] * b[3][2];
-	r[3][3] = a[3][0] * b[0][3] + a[3][1] * b[1][3] + a[3][2] * b[2][3] + a[3][3] * b[3][3];
+	out[0] = in[0] * m[0][0] + in[1] * m[0][1] + in[2] * m[0][2] + m[0][3];
+	out[1] = in[0] * m[1][0] + in[1] * m[1][1] + in[2] * m[1][2] + m[1][3];
+	out[2] = in[0] * m[2][0] + in[1] * m[2][1] + in[2] * m[2][2] + m[2][3];
 }
 
-
-
-// assumes that the bottom row of the matrix will produce a 1
-void VertexTransform(const float r[3], const float m[4][4] const float v[3])
+// takes as input a portal and returns the bounds
+static void ProjectPortal(portal_t *p)
 {
-	r[0] = v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2] + m[0][3];
-	r[1] = v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2] + m[1][3];
-	r[2] = v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2] + m[2][3];
+	for (int i = 0; i < p->numvertices; i++)
+	{
+		//vec3 v = TransformPortalVertex(p->vertices[i], rs.clip);
+	}
 }
 
+static bool TestDepth(box3 box)
+{
+	if (box.max[0] < 0.0f)
+		return false;
 
+	return true;
+}
 
-//portal code
-void IntersectionOfBoxes()
+static bool TestOffScreen(box3 box)
+{}
+
+// 
+static bool CullPortal()
+{
+	// if the depth is < 0.0f
+		 // fail depth test
+	// if offscreen
+		// fail offscreen
+
+}
+
+// intersection of the two bounds
+static void ClipPortal()
 {
 	// for the minimum axis, take the max of the minumums
 	// for the maxumum axis, take the min of the maximums
@@ -874,13 +875,36 @@ void IntersectionOfBoxes()
 	// test if the box is actually valid
 }
 
-void ProjectPortal(portal_t *p)
+// the polarity of the test is setup to be the same as fragments.
+// fragments are only drawn if they PASS the depth stencil and alpha
+static void FindVisibleAreas(area_t *a)
 {
-	for (int i = 0; i < portal->numvertices; i++)
+	for (portal_t *p = a->portals; p; p = p->next)
 	{
-		p->vertex[i]
+		// ProjectPortal
+
+		// don't process portals which fail the cull test
+		if (!CullPortal())
+			continue;
+
+		// Clip the portal
+		
+		// FindVisibleAreas
+		FindVisibleAreas(p->dstleaf->area);
+	}
 }
-#endif
+
+static void FindVisibleAreas()
+{
+	// in-an-empty-area?
+		// all areas are visible
+
+	// find the area the view is in
+
+	//call FindVisibleAreas recursively with the area
+}
+
+// top level drawing stuff
 
 static void DrawAxis()
 {
