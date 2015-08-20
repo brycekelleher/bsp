@@ -595,6 +595,7 @@ static void SetPerspectiveMatrix()
 	GL_LoadMatrix(m);
 }
 
+#if 0
 void MatrixMultiply(const float r[4][4], const float a[4][4], const float b[4][4])
 {
 	r[0][0] = a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0] + a[0][3] * b[3][0];
@@ -645,6 +646,7 @@ void ProjectPortal(portal_t *p)
 	{
 		p->vertex[i]
 }
+#endif
 
 static void DrawAxis()
 {
