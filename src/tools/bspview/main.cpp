@@ -115,6 +115,8 @@ typedef struct bspnode_s
 	plane_t		plane;
 	box3		box;
 	int		areanum;
+	bool		empty;
+
 	struct bspnode_s*	children[2];
 	struct bspnode_s*	areanext;
 	struct area_s*		area;
@@ -136,6 +138,9 @@ typedef struct portal_s
 
 typedef struct area_s
 {
+	struct area_s	*next;
+	struct area_s	*visiblenext;
+
 	int		numportals;
 	portal_t	*portals;
 
@@ -145,6 +150,9 @@ typedef struct area_s
 	int		numsurfaces;
 	surf_t		*surfaces;
 
+	// used to test if we're flowing back into an area we've already been to
+	int		areavisited;
+
 } area_t;
 
 // model data
@@ -152,6 +160,8 @@ static int numareas;
 static area_t		*areas;
 static bspnode_t	*nodes;
 static portal_t		*portals;
+static area_t		*arealist;
+static area_t		*visibleareas;
 
 static void LoadNodes(FILE *fp)
 {
@@ -181,11 +191,19 @@ static void LoadNodes(FILE *fp)
 		int areanum = ReadInt(fp);
 		n->area = areas + areanum;
 
+		int empty = ReadInt(fp);
+		n->empty = (empty > 0);
+
 		int childnum[2];
 		childnum[0] = ReadInt(fp);
 		childnum[1] = ReadInt(fp);
 		n->children[0] = nodes + childnum[0];
 		n->children[1] = nodes + childnum[1];
+
+		if (childnum[0] == -1)
+			n->children[0] = NULL;
+		if (childnum[1] == -1)
+			n->children[1] = NULL;
 	}
 }
 
@@ -279,6 +297,10 @@ static void LoadAreas(FILE *fp)
 	for (int i = 0; i < numareas; i++)
 	{
 		area_t *a = areas + i;
+
+		// link the area into the global list
+		a->next = arealist;
+		arealist = a;
 
 		// read the leaf nodes
 		a->numleafs = ReadInt(fp);
@@ -458,13 +480,13 @@ static void DoMove()
 	viewstate.pos[1] += cmd->forwardmove * vectors[0][1];
 	viewstate.pos[2] += cmd->forwardmove * vectors[0][2];
 
+	viewstate.pos[0] += cmd->upmove * vectors[1][0];
+	viewstate.pos[1] += cmd->upmove * vectors[1][1];
+	viewstate.pos[2] += cmd->upmove * vectors[1][2];
+
 	viewstate.pos[0] += cmd->sidemove * vectors[2][0];
 	viewstate.pos[1] += cmd->sidemove * vectors[2][1];
 	viewstate.pos[2] += cmd->sidemove * vectors[2][2];
-
-	viewstate.pos[0] += cmd->upmove * vectors[2][0];
-	viewstate.pos[1] += cmd->upmove * vectors[2][1];
-	viewstate.pos[2] += cmd->upmove * vectors[2][2];
 
 	viewstate.angles[0] += cmd->anglemove[0];
 	viewstate.angles[1] += cmd->anglemove[1];
@@ -498,7 +520,7 @@ typedef struct rs_s
 	int	renderwidth;
 	int	renderheight;
 
-	float	fov;
+	float	fovx, fovy;	// these are half fov in radians
 	float	znear, zfar;
 
 	// view position and view vectors
@@ -509,6 +531,13 @@ typedef struct rs_s
 	float	view[4][4];
 	float	projection[4][4];
 	float	clip[4][4];
+
+	// clipping planes
+	plane_t		planes[64];
+
+	bool		vis;
+	bool		showportals;
+	int		rendermode;
 
 } rs_t;
 
@@ -575,9 +604,6 @@ static void DrawBuffer(drawbuffer_t *b)
 	glColorPointer(4, GL_FLOAT, sizeof(drawvertex_t), b->vertices->color);
 
 	glDrawArrays(GL_TRIANGLES, 0, b->numvertices);
-
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
 }
 
 // copy the vertex data in to the drawbuffer
@@ -609,10 +635,10 @@ static void SetupDrawBuffer(drawbuffer_t *b)
 	// flush the drawbuffer
 	b->numvertices = 0;
 
-	for (int i = 0; i < numareas; i++)
+	// build the drawbuffer from visible areas
+	for (area_t *a = visibleareas; a; a = a->visiblenext)
 	{
-		area_t *a = areas + i;
-
+		// not all areas have surfaces
 		if (!a->surfaces)
 			continue;
 
@@ -622,19 +648,16 @@ static void SetupDrawBuffer(drawbuffer_t *b)
 
 static void DrawWireframe(drawbuffer_t *b)
 {
-	static float white[] = { 1, 1, 1 };
-	static float black[] = { 0, 0, 0 };
-
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
 
 	// draw solid color
-	glColor3fv(white);
+	glColor3f(1, 1, 1);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	DrawBuffer(b);
 
 	// draw wireframe outline
-	glColor3fv(black);
+	glColor3f(0, 0, 0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(-1, -2);
@@ -642,8 +665,8 @@ static void DrawWireframe(drawbuffer_t *b)
 	glDisable(GL_POLYGON_OFFSET_FILL);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+	glEnable(GL_DEPTH_TEST);
 	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
 }
 
 static void DrawNormalsAsColors(drawbuffer_t *b)
@@ -761,17 +784,12 @@ static void SetupModelViewMatrix()
 static void SetupProjectionMatrix()
 {
 	float r, l, t, b;
-	float fovx, fovy;
-
-	fovx = rs.fov * (PI / 360.0f);
-	float x = (rs.renderwidth / 2.0f) / atan(fovx);
-	fovy = atan2(rs.renderheight / 2.0f, x);
 
 	// Calcuate right, left, top and bottom values
-	r = rs.znear * fovx;
+	r = rs.znear * tan(rs.fovx);
 	l = -r;
 
-	t = rs.znear * fovy;
+	t = rs.znear * tan(rs.fovy);
 	b = -t;
 
 	rs.projection[0][0] = (2.0f * rs.znear) / (r - l);
@@ -806,17 +824,33 @@ static void SetupGLMatrixState()
 	GL_LoadMatrixTranspose(rs.projection);
 }
 
+static void SetupFOV()
+{
+	// calulate half x fov in radians
+	float fovx = viewstate.fov * PI / 360.0f;
+
+	// calulate the distance from projection plane to view
+	float x = rs.renderwidth / tan(fovx);
+
+	// calculate the y fov
+	float fovy = atan2(rs.renderheight, x);
+
+	rs.fovx = fovx; //* 360.0f / PI;
+	rs.fovy = fovy; //* 360.0f / PI;
+}
+
 static void SetupMatrices()
 {
 	rs.znear	= viewstate.znear;
 	rs.zfar		= viewstate.zfar;
-	rs.fov		= viewstate.fov;
 
 	rs.pos[0]	= viewstate.pos[0];
 	rs.pos[1]	= viewstate.pos[1];
 	rs.pos[2]	= viewstate.pos[2];
 
 	SetupViewVectors();
+
+	SetupFOV();
 
 	SetupModelViewMatrix();
 
@@ -828,80 +862,259 @@ static void SetupMatrices()
 	MatrixMultiply(rs.clip, rs.projection, rs.view);
 }
 
-// portal visibility code
-static void TransformPortalVertex(float out[3], float m[4][4], float in[3])
+static void SetupFrustrum()
 {
+}
+
+// ______________________________________________________________________
+// portal visibility code
+
+typedef struct portalplanes_s
+{
+	int	numplanes;
+	plane_t	planes[32];
+
+} portalplanes_t;
+
+static plane_t portalplanes[32];
+
+#if 1
+static vec3 TransformPortalVertex(float m[4][4], vec3 in)
+{
+	vec3 out;
+
+	// transform to clip
 	out[0] = in[0] * m[0][0] + in[1] * m[0][1] + in[2] * m[0][2] + m[0][3];
 	out[1] = in[0] * m[1][0] + in[1] * m[1][1] + in[2] * m[1][2] + m[1][3];
 	out[2] = in[0] * m[2][0] + in[1] * m[2][1] + in[2] * m[2][2] + m[2][3];
+	float w = in[0] * m[3][0] + in[1] * m[3][1] + in[2] * m[3][2] + m[3][3];
+
+	// transform to NDC
+	return vec3(out[0] / w, out[1] / w, (out[2] / w));
+}
+#endif
+
+#if 0
+static vec3 TransformPortalVertex(float m[4][4], vec3 in)
+{
+	float eye[4], clip[4];
+
+	// transform to eye
+	for (int i = 0; i < 4; i++)
+		eye[i] =
+			(rs.view[i][0] * in[0]) +
+			(rs.view[i][1] * in[1]) +
+			(rs.view[i][2] * in[2]) +
+			(rs.view[i][3] * 1.0f);
+
+	// transform to clip
+	for (int i = 0; i < 4; i++)
+		clip[i] =
+			(rs.projection[i][0] * eye[0]) +
+			(rs.projection[i][1] * eye[1]) +
+			(rs.projection[i][2] * eye[2]) +
+			(rs.projection[i][3] * eye[3]);
+
+	// transform to NDC
+	return vec3(clip[0] / clip[3], clip[1] / clip[3], (clip[2] / clip[3]));
+}
+#endif
+
+static void SetupPortalPlanes(plane_t *planes)
+{
+	float cx = cosf(rs.fovx);
+	float sx = sinf(rs.fovx);
+	float cy = cosf(rs.fovy);
+	float sy = sinf(rs.fovy);
+
+	vec3 forward	= vec3(rs.viewvectors[0][0], rs.viewvectors[0][1], rs.viewvectors[0][2]);
+	vec3 up		= vec3(rs.viewvectors[1][0], rs.viewvectors[1][1], rs.viewvectors[1][2]);
+	vec3 side	= vec3(rs.viewvectors[2][0], rs.viewvectors[2][1], rs.viewvectors[2][2]);
+	vec3 pos	= vec3(rs.pos[0], rs.pos[1], rs.pos[2]);
+
+	// setup the planes
+	vec3 l = (cx * forward) + (sx * side);
+	vec3 r = (cx * forward) - (sx * side);
+	vec3 b = (cy * forward) + (sy * up);
+	vec3 t = (cy * forward) - (sy * up);
+
+	planes[0] = plane_t(forward, -Dot(forward, pos));
+	planes[1] = plane_t(l, -Dot(l, pos));
+	planes[2] = plane_t(r, -Dot(r, pos));
+	planes[3] = plane_t(b, -Dot(b, pos));
+	planes[4] = plane_t(t, -Dot(t, pos));
 }
 
-// takes as input a portal and returns the bounds
-static void ProjectPortal(portal_t *p)
+static int PointOnPlaneSide(vec3 p, plane_t plane, float epsilon)
 {
-	for (int i = 0; i < p->numvertices; i++)
+	return plane.PointOnPlaneSide(p, epsilon);
+}
+
+// Classify where a polygon is with respect to a plane
+int PortalOnPlaneSide(portal_t *p, plane_t plane, float epsilon)
+{
+	bool	front, back;
+	int	i;
+
+	front = 0;
+	back = 0;
+
+	for (i = 0; i < p->numvertices; i++)
 	{
-		//vec3 v = TransformPortalVertex(p->vertices[i], rs.clip);
+		int side = PointOnPlaneSide(p->vertices[i], plane, epsilon);
+		
+		if (side == PLANE_SIDE_BACK)
+		{
+			if (front)
+				return PLANE_SIDE_CROSS;
+			back = 1;
+			continue;
+		}
+
+		if (side == PLANE_SIDE_FRONT)
+		{
+			if (back)
+				return PLANE_SIDE_CROSS;
+			front = 1;
+			continue;
+		}
+	}
+
+	if (back)
+		return PLANE_SIDE_BACK;
+	if (front)
+		return PLANE_SIDE_FRONT;
+	
+	return PLANE_SIDE_ON;
+}
+
+
+#if 0
+// test each portal vertex against each plane
+// if a single vertex is inside the view volume then the portal intersects
+// must pass all plane tests
+static bool TestPortalAgainstView(plane_t *planes, int numplanes, portal_t *p)
+{
+	int i, j;
+
+	for (i = 0; i < p->numvertices; i++)
+	{
+		vec3 v = p->vertices[i];
+		for (j = 0; j < numplanes; j++)
+			if (planes[j].PointOnPlaneSide(v, 0.2f) != PLANE_SIDE_FRONT)
+				break;
+
+		if (j == numplanes)
+			return true;
+	}
+
+	return false;
+}
+#endif
+
+// test each portal vertex against each plane
+// if a single vertex is inside the view volume then the portal intersects
+// must pass all plane tests
+static bool TestPortalAgainstView(plane_t *planes, int numplanes, portal_t *p)
+{
+	int i, j;
+
+	for (j = 0; j < numplanes; j++)
+	{
+		int side = PortalOnPlaneSide(p, planes[j], 0.2f);
+		if (side == PLANE_SIDE_BACK)
+			break;
+	}
+
+	return (j == numplanes);
+}
+
+static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)
+{
+	// if this is a leaf then return it
+	if(!n->children[0] && !n->children[1])
+		return n;
+	
+	int side = n->plane.PointOnPlaneSide(p, 0.2f);
+	
+	if (side == PLANE_SIDE_FRONT || side == PLANE_SIDE_ON)
+		return WalkWithPoint(n->children[0], p);
+	else
+		return WalkWithPoint(n->children[1], p);
+}
+
+static bspnode_t *QueryViewNode(vec3 p)
+{
+	// works on the assumption that node 0 is the root
+	return WalkWithPoint(nodes, p);
+}
+
+static void MarkAllAreasVisible()
+{
+	visibleareas = NULL;
+
+	// move all the areas onto the visible list
+	for (area_t *a = arealist; a; a = a->next)
+	{
+		a->visiblenext = visibleareas;
+		visibleareas = a;
 	}
 }
 
-static bool TestDepth(box3 box)
-{
-	if (box.max[0] < 0.0f)
-		return false;
-
-	return true;
-}
-
-static bool TestOffScreen(box3 box)
-{}
-
-// 
-static bool CullPortal()
-{
-	// if the depth is < 0.0f
-		 // fail depth test
-	// if offscreen
-		// fail offscreen
-
-}
-
-// intersection of the two bounds
-static void ClipPortal()
-{
-	// for the minimum axis, take the max of the minumums
-	// for the maxumum axis, take the min of the maximums
-
-	// test if the box is actually valid
-}
+static int areavisited;
 
 // the polarity of the test is setup to be the same as fragments.
 // fragments are only drawn if they PASS the depth stencil and alpha
-static void FindVisibleAreas(area_t *a)
+static void FindVisibleAreasRecursive(area_t *a)
 {
+	//printf("area %p is visible\n", a);
+	// mark it as visited
+	a->areavisited = areavisited;
+
+	// link it into the list
+	a->visiblenext = visibleareas;
+	visibleareas = a;
+
 	for (portal_t *p = a->portals; p; p = p->next)
 	{
-		// ProjectPortal
-
-		// don't process portals which fail the cull test
-		if (!CullPortal())
+		// don't flow into area we've already been into
+		if (p->dstleaf->area->areavisited == a->areavisited)
 			continue;
 
-		// Clip the portal
-		
-		// FindVisibleAreas
-		FindVisibleAreas(p->dstleaf->area);
+		// don't process portals which fail the cull test
+		if (!TestPortalAgainstView(&portalplanes[0], 5, p))
+			continue;
+
+		// flow through into the area on the other side of this portal
+		FindVisibleAreasRecursive(p->dstleaf->area);
 	}
 }
 
 static void FindVisibleAreas()
 {
-	// in-an-empty-area?
-		// all areas are visible
+	//printf("finding visible areas\n");
 
-	// find the area the view is in
+	areavisited++;
+	visibleareas = NULL;
 
-	//call FindVisibleAreas recursively with the area
+	// find the node the view is currently located in
+	vec3 pos = vec3(rs.pos[0], rs.pos[1], rs.pos[2]);
+	bspnode_t *n = QueryViewNode(pos);
+
+	// if the view is in solid mark all areas visible
+	if (!n->empty || !rs.vis)
+	{
+		MarkAllAreasVisible();
+		return;
+	}
+
+	area_t *a = n->area;
+
+	// setup the portal planes
+	SetupPortalPlanes(&portalplanes[0]);
+
+	// walk the portal graph
+	FindVisibleAreasRecursive(a);
 }
 
 // top level drawing stuff
@@ -960,10 +1173,58 @@ static void DrawPortal(portal_t *p)
 	for (int i = 0; i < p->numvertices; i++)
 		glVertex3fv(&p->vertices[i].x);
 	glEnd();
+
+#if 0	
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glColor3f(1, 1, 0);
+
+#if 0
+	// draw the portal vertices
+	glBegin(GL_LINE_LOOP);
+	for (int i = 0; i < p->numvertices; i++)
+	{
+		vec3 v = TransformPortalVertex(rs.clip, vec3(p->vertices[i]));
+
+		if (v[0] < -1.0f)
+			v[0] = -1.0f;
+		if (v[0] > 1.0f)
+			v[0] = 1.0f;
+		if (v[1] < -1.0f)
+			v[1] = -1.0f;
+		if (v[1] > 1.0f)
+			v[1] = 1.0f;
+
+		glVertex3f(v[0], v[1], 0);
+	}
+	glEnd();
+#endif
+
+	// draw the portal bounding box
+	box3 box = ProjectPortal(p);
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(box.min[0], box.min[1], 0.0f);
+	glVertex3f(box.max[0], box.min[1], 0.0f);
+	glVertex3f(box.max[0], box.max[1], 0.0f);
+	glVertex3f(box.min[0], box.max[1], 0.0f);
+	glEnd();
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+#endif
 }
 
 static void DrawPortals()
 {
+	if (!rs.showportals)
+		return;
+
 	for (portal_t *p = portals; p; p = p->next)
 		DrawPortal(p);
 }
@@ -972,9 +1233,12 @@ static void DrawWorld()
 {
 	SetupDrawBuffer(&drawbuffer);
 
-	//DrawWireframe(&drawbuffer);
-	//DrawNormalsAsColors(&drawbuffer);
-	DrawLit(&drawbuffer);
+	if (rs.rendermode == 0)
+		DrawLit(&drawbuffer);
+	else if (rs.rendermode == 1)
+		DrawNormalsAsColors(&drawbuffer);
+	else if (rs.rendermode == 2)
+		DrawWireframe(&drawbuffer);
 }
 
 static void Draw()
@@ -988,13 +1252,13 @@ static void Draw()
 
 static void BeginFrame()
 {
+	framenum++;
+
 	glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glFrontFace(GL_CCW);
 	glEnable(GL_CULL_FACE);
-
-	SetupMatrices();
 }
 
 static void EndFrame()
@@ -1003,6 +1267,10 @@ static void EndFrame()
 static void DrawFrame()
 {
 	BeginFrame();
+
+	SetupMatrices();
+
+	FindVisibleAreas();
 
 	Draw();
 
@@ -1034,6 +1302,24 @@ static void DisplayFunc()
 static void KeyboardDownFunc(unsigned char key, int x, int y)
 {
 	input.keys[key] = true;
+
+	if (input.keys['r'])
+	{
+		rs.rendermode = (rs.rendermode + 1) % 3;
+		printf("rendermode: %i\n", rs.rendermode);
+	}
+
+	if (input.keys['x'])
+	{
+		rs.vis = !rs.vis;
+		printf("vis: %s\n", (rs.vis ? "on" : "off"));
+	}
+
+	if (input.keys['p'])
+	{
+		rs.showportals = !rs.showportals;
+		printf("showportals: %i\n", (rs.showportals ? 1 : 0));
+	}
 }
 
 static void KeyboardUpFunc(unsigned char key, int x, int y)
@@ -1089,6 +1375,7 @@ int GLUTMain(int argc, char *argv[])
 	glutInitWindowSize(400, 400);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
 	glutCreateWindow("test");
+	//glutHideWindow();
 
 	glutReshapeFunc(ReshapeFunc);
 	glutDisplayFunc(DisplayFunc);

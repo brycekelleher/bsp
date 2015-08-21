@@ -82,6 +82,9 @@ static void DecodeNode(int nodenum, FILE *fp)
 	int areanum = ReadInt(fp);
 	printf("areanum: %i\n", areanum);
 
+	int empty = ReadInt(fp);
+	printf("empty: %i\n", empty);
+
 	int childnum[2];
 	childnum[0] = ReadInt(fp);
 	childnum[1] = ReadInt(fp);

@@ -64,6 +64,7 @@ static void EmitNode(bspnode_t *n, FILE *fp)
 		EmitPlane(n->plane, fp);
 		EmitBox3(n->box, fp);
 		EmitInt((n->area ? n->area->areanumber : -1), fp);
+		EmitInt(n->empty ? 1 : 0, fp);
 #endif
 	}
 
