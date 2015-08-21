@@ -22,7 +22,7 @@ public:
 
 	plane_t();
 	plane_t(float a, float b, float c, float d);
-	plane_t(vec3 n, float d);
+	plane_t(vec3 normal, float distance);
 
 	// read from an indexed element
 	float operator[](int i) const;

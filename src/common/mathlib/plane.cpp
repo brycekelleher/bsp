@@ -10,12 +10,12 @@ plane_t::plane_t(float a, float b, float c, float d)
 	: a(a), b(b), c(c), d(d)
 {}
 
-plane_t::plane_t(vec3 n, float d)
+plane_t::plane_t(vec3 normal, float distance)
 {
-	a = n.x;
-	b = n.y;
-	c = n.z;
-	d = -d;
+	a = normal.x;
+	b = normal.y;
+	c = normal.z;
+	d = distance;
 }
 
 float plane_t::operator[](int i) const
