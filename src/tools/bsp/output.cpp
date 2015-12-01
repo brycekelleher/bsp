@@ -49,7 +49,47 @@ static int NumberNodesRecursive(bspnode_t *n, int number)
 	return number;
 }
 
-// emit nodes in pre-order. This order must match how the nodes were numbered
+#if 0
+// emit nodes in pre-order
+static int EmitNode(bspnode_t *n, FILE *fp)
+{
+	// termination guard
+	if (!n)
+		return;
+
+	children[0] = EmitNode(n->children[0]);
+	children[1] = EmitNode(n->children[1]);
+
+	EmitInt(children[0]);
+	EmitInt(children[1]);
+
+	// write the node data
+	EmitNodeData();
+}
+#endif
+
+#if 0
+// emit nodes in post-order in place
+static void EmitNode(bspnode_t *n, FILE *fp)
+{
+	// termination guard
+	if (!n)
+		return;
+
+	// write the node data
+	EmitNodeData();
+
+	// write a flag that indicates whether the node has children
+	EmitInt((n->children[0] != NULL ? 1 : 0), fp);
+	EmitInt((n->children[1] != NULL ? 1 : 0), fp);
+
+	// emit the child nodes
+	EmitNode(n->children[0], fp);
+	EmitNode(n->children[1], fp);
+}
+#endif
+
+// emit nodes in post-order. This order must match how the nodes were numbered
 // an alternative would be to write these out iteratively and fseek to the correct position
 static void EmitNode(bspnode_t *n, FILE *fp)
 {
