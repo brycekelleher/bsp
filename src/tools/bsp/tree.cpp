@@ -5,15 +5,18 @@
 // divide the list
 // recurse on the list until no polygons remain
 
-typedef struct bsppoly_s
+typedef struct bspface_s
 {
-	struct bsppoly_s	*next;
+	struct bspface_s	*next;
 	polygon_t		*polygon;
 	plane_t			plane;
 	box3			box;
 	bool			areahint;
 
-} bsppoly_t;
+} bspface_t;
+
+// global list of bsp nodes
+static bspnode_t	*bspnodes;
 
 // A candidate split plane has features f1, f2 .. fn that characterize it
 // The split plane's 'static value' is a function of it's features
@@ -28,27 +31,56 @@ typedef struct plane_features_s
 
 } plane_features_t;
 
-static int PolygonOnPlaneSide(bsppoly_t *p, plane_t plane)
+static int FaceOnPlaneSide(bspface_t *p, plane_t plane)
 {
 	return Polygon_OnPlaneSide(p->polygon, plane, CLIP_EPSILON);
 }
 
-static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
-{
-	return (PolygonOnPlaneSide(p, plane) == PLANE_SIDE_ON);
-}
-
-static plane_t PolygonPlane(bsppoly_t *p)
+static plane_t FacePlane(bspface_t *p)
 {
 	plane_t plane = Polygon_Plane(p->polygon);
 	
-	if (PolygonOnPlaneSide(p, plane) != PLANE_SIDE_ON)
+	if (FaceOnPlaneSide(p, plane) != PLANE_SIDE_ON)
 		Error("Polygon doesn't lie on calculated plane\n");
 	
 	return plane;
 }
 
-static box3 CalculatePolygonListBoundingBox(bsppoly_t *list)
+static bool CheckFaceOnPlane(bspface_t *p, plane_t plane)
+{
+	return (FaceOnPlaneSide(p, plane) == PLANE_SIDE_ON);
+}
+
+static box3 ClipBoxWithPlane(box3 box, plane_t plane)
+{
+	box3 clipped;
+
+	for(int i = 0; i < 3; i++)
+	{
+		if (plane[i] == 1)
+		{
+			// plane points in positive direction so clip min
+			clipped.min[i] = -plane[3];
+			clipped.max[i] = box.max[i];
+		}
+		else if (plane[i] == -1)
+		{
+			// plane points in negative direction so clip max 
+			clipped.min[i] = box.min[i];
+			clipped.max[i] = plane[3];
+		}
+		else
+		{
+			// copy the original bound through for this axis
+			clipped.min[i] = box.min[i];
+			clipped.max[i] = box.max[i];
+		}
+	}
+
+	return clipped;
+}
+
+static box3 BoundingBox(bspface_t *list)
 {
 	box3 box;
 	
@@ -58,7 +90,7 @@ static box3 CalculatePolygonListBoundingBox(bsppoly_t *list)
 	return box;
 }
 
-static int Length(bsppoly_t *list)
+static int Length(bspface_t *list)
 {
 	int i = 0;
 	for(; list; list = list->next)
@@ -67,25 +99,19 @@ static int Length(bsppoly_t *list)
 	return i;
 }
 
-static plane_features_t ComputeSplitPlaneFeatures(plane_t plane, bool areahint, bsppoly_t *list)
+static plane_features_t ComputeSplitPlaneFeatures(plane_t plane, bool areahint, bspface_t *list)
 {
 	plane_features_t	f;
 
 	f.areahint = areahint;
 	f.axial = plane.IsAxial();
-	f.sides[0] = 0;
-	f.sides[1] = 0;
-	f.sides[2] = 0;
-	f.sides[3] = 0;
-	f.areas[0] = 0.0f;
-	f.areas[1] = 0.0f;
-	f.areas[2] = 0.0f;
-	f.areas[3] = 0.0f;
+	f.sides[0] = f.sides[1] = f.sides[2] = f.sides[3] = 0;
+	f.areas[0] = f.areas[1] = f.areas[2] = f.areas[3] = 0.0f;
 	// zero_int_array(f.sides, 4)
 
 	for(; list; list = list->next)
 	{
-		int side = PolygonOnPlaneSide(list, plane);
+		int side = FaceOnPlaneSide(list, plane);
 
 		f.sides[side]	+= 1;
 		f.areas[side]	+= Polygon_Area(list->polygon);
@@ -94,7 +120,7 @@ static plane_features_t ComputeSplitPlaneFeatures(plane_t plane, bool areahint, 
 	return f;
 }
 
-static float ComputeSplitPlaneScore(plane_t plane, bool areahint, bsppoly_t *list)
+static float ComputeSplitPlaneScore(plane_t plane, bool areahint, bspface_t *list)
 {
 	plane_features_t f = ComputeSplitPlaneFeatures(plane, areahint, list);
 
@@ -119,9 +145,9 @@ static float ComputeSplitPlaneScore(plane_t plane, bool areahint, bsppoly_t *lis
 
 	// compute balanced area feature
 	float f5 = 1.0f - (fabs(f.areas[PLANE_SIDE_FRONT] - f.areas[PLANE_SIDE_BACK]) / (f.areas[PLANE_SIDE_FRONT] + f.areas[PLANE_SIDE_BACK]));
-	// a plane that has no front and back sides is already balanced
+	// a plane that has no front and back sides has no balance
 	if (f.areas[PLANE_SIDE_FRONT] - f.areas[PLANE_SIDE_BACK] == 0.0f)
-		f5 = 1.0f;
+		f5 = 0.0f;
 	float w5 = 1.0f;
 
 	// final weight adjustment
@@ -133,26 +159,23 @@ static float ComputeSplitPlaneScore(plane_t plane, bool areahint, bsppoly_t *lis
 
 	// compute score
 	//Message("score: %f %f %f %f %f\n", f1, f2, f3, f4, f5);
-	float s = (w1 * f1) + (w2 * f2) + (w3 * f3) + (w4 * f4) + (w5 * f5);
-
-	return s;
+	return (w1 * f1) + (w2 * f2) + (w3 * f3) + (w4 * f4) + (w5 * f5);
 }
 
 // fixme: get this to return a face as ChooseBestSplitFace
-static plane_t ChooseBestSplitPlane(bsppoly_t *list, bool *areahint)
+static plane_t ChooseBestSplitPlane(bspface_t *list, bool *areahint)
 {
-	float bestscore = 0.0f;
+	float bestscore;
 	plane_t bestplane;
-	bsppoly_t *p;
 	
 	bestscore = -1.0f;
 	*areahint = false;
-	for (p = list; p; p = p->next)
+	for (bspface_t *f = list; f; f = f->next)
 	{
-		plane_t plane = PolygonPlane(p);
-		float score = ComputeSplitPlaneScore(plane, p->areahint, list);
+		plane_t plane = FacePlane(f);
+		float score = ComputeSplitPlaneScore(plane, f->areahint, list);
 
-		if(score > bestscore)
+		if (score > bestscore)
 		{
 			bestscore	= score;
 			bestplane	= plane;
@@ -165,19 +188,16 @@ static plane_t ChooseBestSplitPlane(bsppoly_t *list, bool *areahint)
 	return bestplane;
 }
 
-// global list of bsp nodes
-static bspnode_t	*bspnodes;
-
 static bsptree_t *MallocTree()
 {
 	return (bsptree_t*)MallocZeroed(sizeof(bsptree_t));
 }
 
-static bsppoly_t *MallocBSPPoly(polygon_t *polygon)
+static bspface_t *MallocBSPFace(polygon_t *polygon)
 {
-	bsppoly_t	*p;
+	bspface_t	*p;
 	
-	p = (bsppoly_t*)MallocZeroed(sizeof(bsppoly_t));
+	p = (bspface_t*)MallocZeroed(sizeof(bspface_t));
 	p->polygon = polygon;
 	
 	return p;
@@ -207,82 +227,85 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 // ==============================================
 // Tree building code
 
-static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t **f, bsppoly_t **b)
+static void SplitFace(bspface_t *p, plane_t plane, float epsilon, bspface_t **f, bspface_t **b)
 {
-	polygon_t *ff, *bb;
+	polygon_t *fp, *bp;
 	
 	*f = *b = NULL;
 	
 	// split the polygon
-	Polygon_SplitWithPlane(p->polygon, plane, CLIP_EPSILON, &ff, &bb);
+	Polygon_SplitWithPlane(p->polygon, plane, epsilon, &fp, &bp);
 	
-	if (ff)
+	if (fp)
 	{
-		*f = MallocBSPPoly(ff);
+		*f = MallocBSPFace(fp);
 		(*f)->plane	= p->plane;
 		(*f)->box	= p->box;
 		(*f)->areahint	= p->areahint;
 	}
-	if (bb)
+	if (bp)
 	{
-		*b = MallocBSPPoly(bb);
+		*b = MallocBSPFace(bp);
 		(*b)->plane	= p->plane;
 		(*b)->box	= p->box;
 		(*b)->areahint	= p->areahint;
 	}
 	
-	// check that the split polygon sits in the original's plane
-	if (*f && !CheckPolygonOnPlane(*f, PolygonPlane(p)))
+	// check that the split face sits in the original's plane
+	if (*f && !CheckFaceOnPlane(*f, FacePlane(p)))
 		Error("Front polygon doesn't sit on original plane after split\n");
-	if (*b && !CheckPolygonOnPlane(*b, PolygonPlane(p)))
+	if (*b && !CheckFaceOnPlane(*b, FacePlane(p)))
 		Error("Back polygon doesn't sit on original plane after split\n");
 }
 
-static bsppoly_t *MakePolygonList(mapface_t *mapfaces)
+static bspface_t *MakeFaceList(mapface_t *mapfaces)
 {
-	bsppoly_t	*list = NULL;
-	bsppoly_t	**t = &list;
+	bspface_t	*list = NULL;
+	bspface_t	**t = &list;
 
 	for (mapface_t *f = mapfaces; f; f = f->next)
 	{
-		// allocate a new bsppoly
-		bsppoly_t *p	= MallocBSPPoly(f->polygon);
-		p->plane	= f->plane;
-		p->box		= f->box;
-		p->areahint	= f->areahint;
+		// allocate a new bspface
+		polygon_t *p		= Polygon_Copy(f->polygon);
+		bspface_t *bspface	= MallocBSPFace(p);
+		bspface->plane		= f->plane;
+		bspface->box		= f->box;
+		bspface->areahint	= f->areahint;
 		
 		// link it into the list
-		(*t) = p;
-		t = &p->next;
+		(*t) = bspface;
+		t = &bspface->next;
 	}
 
 	return list;
 }
 
-static bsptree_t *MakeEmptyTree()
+static bsptree_t *MakeEmptyTree(bspface_t *flist)
 {
 	bsptree_t	*tree;
 	
 	tree = MallocTree();
 	tree->root = MallocBSPNode(tree, NULL);
 
+	// setup the root node bounding box
+	tree->root->box = BoundingBox(flist);
+	tree->root->box.Expand(8.0f);
+
 	return tree;
 }
 
-static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sides)
+static void PartitionFaceList(plane_t plane, bspface_t *list, bspface_t **sides)
 {
-	sides[0] = NULL;
-	sides[1] = NULL;
+	sides[0] = sides[1] = NULL;
 	
-	for(; list; list = list->next)
+	for(bspface_t *f = list; f; f = f->next)
 	{
-		bsppoly_t *split[2];
-		int i;
+		bspface_t *split[2];
 		
-		SplitPolygon(list, plane, CLIP_EPSILON, &split[0], &split[1]);
+		SplitFace(f, plane, CLIP_EPSILON, &split[0], &split[1]);
 		
 		// process the front (0) and back (1) splits
-		for(i = 0; i < 2; i++)
+		for(int i = 0; i < 2; i++)
 		{
 			if(split[i])
 			{
@@ -293,43 +316,14 @@ static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sid
 	}
 }
 
-static box3 ClipNodeBoxWithPlane(box3 box, plane_t plane)
-{
-	box3 clipped;
-
-	for(int i = 0; i < 3; i++)
-	{
-		if (plane[i] == 1)
-		{
-			// plane points in positive direction so clip min
-			clipped.min[i] = -plane[3];
-			clipped.max[i] = box.max[i];
-		}
-		else if (plane[i] == -1)
-		{
-			// plane points in negative direction so clip max 
-			clipped.min[i] = box.min[i];
-			clipped.max[i] = plane[3];
-		}
-		else
-		{
-			// copy the original bound through for this axis
-			clipped.min[i] = box.min[i];
-			clipped.max[i] = box.max[i];
-		}
-	}
-
-	return clipped;
-}
-
 // this will be called with a node and a list. The list will be of polygons fully
 // contained within the node. Then the node is split with a plane
 // Leaf nodes won't have a valid split plane
 // Leaf nodes wont have valid child pointers
-static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list, int depth)
+static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bspface_t *list, int depth)
 {
 	plane_t		plane;
-	bsppoly_t	*sides[2];
+	bspface_t	*sides[2];
 	
 	// update the depth
 	if (depth > tree->depth)
@@ -351,7 +345,7 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 	plane = ChooseBestSplitPlane(list, &areahint);
 
 	// split the polygon list
-	PartitionPolygonList(plane, list, sides);
+	PartitionFaceList(plane, list, sides);
 
 	node->plane = plane;
 	node->areahint = areahint;
@@ -360,8 +354,8 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 	node->children[0] = MallocBSPNode(tree, node);
 	node->children[1] = MallocBSPNode(tree, node);
 	
-	node->children[0]->box = ClipNodeBoxWithPlane(node->box,  node->plane);
-	node->children[1]->box = ClipNodeBoxWithPlane(node->box, -node->plane);
+	node->children[0]->box = ClipBoxWithPlane(node->box,  node->plane);
+	node->children[1]->box = ClipBoxWithPlane(node->box, -node->plane);
 	
 	// recurse down the front and back sides
 	BuildTreeRecursive(tree, node->children[0], sides[0], depth + 1);
@@ -371,23 +365,16 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bsppoly_t *list
 bsptree_t *BuildTree()
 {
 	bsptree_t	*tree;
-	bsppoly_t	*list;
+	bspface_t	*flist;
 	box3		box;
 
 	Message("Building bsp tree\n");
 
-	list = MakePolygonList(mapdata->faces);
+	flist = MakeFaceList(mapdata->faces);
 	
-	tree = MakeEmptyTree();
+	tree = MakeEmptyTree(flist);
 	
-	// setup the root node bounding box
-	{
-		box = CalculatePolygonListBoundingBox(list);
-		box.Expand(8.0f);
-		tree->root->box = box;
-	}
-	
-	BuildTreeRecursive(tree, tree->root, list, 1);
+	BuildTreeRecursive(tree, tree->root, flist, 1);
 
 	Message("%i nodes\n", tree->numnodes);
 	Message("%i leaves\n", tree->numleafs);
@@ -395,5 +382,4 @@ bsptree_t *BuildTree()
 	
 	return tree;
 }
-
 
