@@ -103,8 +103,8 @@ void WriteFile(const char *filename, void *data, int numbytes)
 
 int ReadFile(const char* filename, void **data)
 {
-	FILE *fp = fopen(filename, "wb");
-	if(fp)
+	FILE *fp = fopen(filename, "rb");
+	if(!fp)
 		Error("Failed to open file \"%s\"\n", filename);
 
 	int size = FileSize(fp);
