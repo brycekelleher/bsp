@@ -15,6 +15,156 @@ typedef struct bsppoly_s
 
 } bsppoly_t;
 
+// A candidate split plane has features f1, f2 .. fn that characterize it
+// The split plane's 'static value' is a function of it's features
+// Typically this function is a linear combination of the features called a 'linear scoring polynomial'
+// the weights are the cofficients of the polynomial
+typedef struct plane_features_s
+{
+	bool	areahint;
+	bool	axial;
+	int	sides[4];
+	float	areas[4];
+
+} plane_features_t;
+
+static int PolygonOnPlaneSide(bsppoly_t *p, plane_t plane)
+{
+	return Polygon_OnPlaneSide(p->polygon, plane, CLIP_EPSILON);
+}
+
+static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
+{
+	return (PolygonOnPlaneSide(p, plane) == PLANE_SIDE_ON);
+}
+
+static plane_t PolygonPlane(bsppoly_t *p)
+{
+	plane_t plane = Polygon_Plane(p->polygon);
+	
+	if (PolygonOnPlaneSide(p, plane) != PLANE_SIDE_ON)
+		Error("Polygon doesn't lie on calculated plane\n");
+	
+	return plane;
+}
+
+static box3 CalculatePolygonListBoundingBox(bsppoly_t *list)
+{
+	box3 box;
+	
+	for (; list; list = list->next)
+		box.AddBox(list->box);
+	
+	return box;
+}
+
+static int Length(bsppoly_t *list)
+{
+	int i = 0;
+	for(; list; list = list->next)
+		i++;
+	
+	return i;
+}
+
+static plane_features_t ComputeSplitPlaneFeatures(plane_t plane, bool areahint, bsppoly_t *list)
+{
+	plane_features_t	f;
+
+	f.areahint = areahint;
+	f.axial = plane.IsAxial();
+	f.sides[0] = 0;
+	f.sides[1] = 0;
+	f.sides[2] = 0;
+	f.sides[3] = 0;
+	f.areas[0] = 0.0f;
+	f.areas[1] = 0.0f;
+	f.areas[2] = 0.0f;
+	f.areas[3] = 0.0f;
+	// zero_int_array(f.sides, 4)
+
+	for(; list; list = list->next)
+	{
+		int side = PolygonOnPlaneSide(list, plane);
+
+		f.sides[side]	+= 1;
+		f.areas[side]	+= Polygon_Area(list->polygon);
+	}
+
+	return f;
+}
+
+static float ComputeSplitPlaneScore(plane_t plane, bool areahint, bsppoly_t *list)
+{
+	plane_features_t f = ComputeSplitPlaneFeatures(plane, areahint, list);
+
+	int listsize = Length(list);
+
+	// compute areahint feature
+	float f1 = (f.areahint ? 1.0f : 0.0f);
+	float w1 = 1.0f;
+
+	// compute axial feature
+	float f2 = (f.axial ? 1.0f : 0.0f);
+	float w2 = 1.0f;
+
+	// compute split feature
+	float f3 = 1.0f - ((float)f.sides[PLANE_SIDE_CROSS] / (float)listsize);
+	float w3 = 1.0f;
+
+	// compute area size feature
+	float f4 = f.areas[PLANE_SIDE_ON] / (f.areas[PLANE_SIDE_FRONT] + f.areas[PLANE_SIDE_BACK] + f.areas[PLANE_SIDE_ON]);
+	//float w4 = (float)listsize / (float)numpolygons;
+	float w4 = 1.0f;
+
+	// compute balanced area feature
+	float f5 = 1.0f - (fabs(f.areas[PLANE_SIDE_FRONT] - f.areas[PLANE_SIDE_BACK]) / (f.areas[PLANE_SIDE_FRONT] + f.areas[PLANE_SIDE_BACK]));
+	// a plane that has no front and back sides is already balanced
+	if (f.areas[PLANE_SIDE_FRONT] - f.areas[PLANE_SIDE_BACK] == 0.0f)
+		f5 = 1.0f;
+	float w5 = 1.0f;
+
+	// final weight adjustment
+	w1 = 1.0f * w1;
+	w2 = 0.0f * w2;
+	w3 = 0.5f * w3;
+	w4 = 0.1f * w4;
+	w5 = 0.4f * w5;
+
+	// compute score
+	//Message("score: %f %f %f %f %f\n", f1, f2, f3, f4, f5);
+	float s = (w1 * f1) + (w2 * f2) + (w3 * f3) + (w4 * f4) + (w5 * f5);
+
+	return s;
+}
+
+// fixme: get this to return a face as ChooseBestSplitFace
+static plane_t ChooseBestSplitPlane(bsppoly_t *list, bool *areahint)
+{
+	float bestscore = 0.0f;
+	plane_t bestplane;
+	bsppoly_t *p;
+	
+	bestscore = -1.0f;
+	*areahint = false;
+	for (p = list; p; p = p->next)
+	{
+		plane_t plane = PolygonPlane(p);
+		float score = ComputeSplitPlaneScore(plane, p->areahint, list);
+
+		if(score > bestscore)
+		{
+			bestscore	= score;
+			bestplane	= plane;
+		}
+	}
+
+	if (bestscore == -1)
+		Error("best score is -1!\n");
+
+	return bestplane;
+}
+
 // global list of bsp nodes
 static bspnode_t	*bspnodes;
 
@@ -54,26 +204,6 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 	return n;
 }
 
-static int PolygonOnPlaneSide(bsppoly_t *p, plane_t plane)
-{
-	return Polygon_OnPlaneSide(p->polygon, plane, CLIP_EPSILON);
-}
-
-static bool CheckPolygonOnPlane(bsppoly_t *p, plane_t plane)
-{
-	return (PolygonOnPlaneSide(p, plane) == PLANE_SIDE_ON);
-}
-
-static plane_t PolygonPlane(bsppoly_t *p)
-{
-	plane_t plane = Polygon_Plane(p->polygon);
-	
-	if (PolygonOnPlaneSide(p, plane) != PLANE_SIDE_ON)
-		Error("Polygon doesn't lie on calculated plane\n");
-	
-	return plane;
-}
-
 // ==============================================
 // Tree building code
 
@@ -108,13 +238,12 @@ static void SplitPolygon(bsppoly_t *p, plane_t plane, float epsilon, bsppoly_t *
 		Error("Back polygon doesn't sit on original plane after split\n");
 }
 
-// this reverses the order of the list...
-// could implement it as a queue. Or take the recursion hit of (cons node (MakePolygonList(node->next)))
-static bsppoly_t *MakePolygonList()
+static bsppoly_t *MakePolygonList(mapface_t *mapfaces)
 {
 	bsppoly_t	*list = NULL;
-	
-	for (mapface_t *f = mapdata->faces; f; f = f->next)
+	bsppoly_t	**t = &list;
+
+	for (mapface_t *f = mapfaces; f; f = f->next)
 	{
 		// allocate a new bsppoly
 		bsppoly_t *p	= MallocBSPPoly(f->polygon);
@@ -123,21 +252,11 @@ static bsppoly_t *MakePolygonList()
 		p->areahint	= f->areahint;
 		
 		// link it into the list
-		p->next = list;
-		list = p;
+		(*t) = p;
+		t = &p->next;
 	}
-	
-	return list;
-}
 
-static box3 CalculatePolygonListBoundingBox(bsppoly_t *list)
-{
-	box3 box;
-	
-	for (; list; list = list->next)
-		box.AddBox(list->box);
-	
-	return box;
+	return list;
 }
 
 static bsptree_t *MakeEmptyTree()
@@ -148,87 +267,6 @@ static bsptree_t *MakeEmptyTree()
 	tree->root = MallocBSPNode(tree, NULL);
 
 	return tree;
-}
-
-static int CalculateSplitPlaneScore(plane_t plane, bsppoly_t *list)
-{
-	int score = 0;
-	
-	for(; list; list = list->next)
-	{
-		// favour polygons that don't cause splits
-		int side = PolygonOnPlaneSide(list, plane);
-		if(side != PLANE_SIDE_CROSS)
-			score += 1;
-	}
-
-	// favour planes which are axial
-	if(plane.IsAxial())
-		score *= 5;
-
-	// favour planes which are balanced at the top of the tree?
-	
-	return score;
-}
-
-static plane_t ChooseBestSplitPlane(bsppoly_t *list, bool *areahint)
-{
-	int bestscore = 0;
-	plane_t bestplane;
-	bsppoly_t *p;
-	
-	// check the node area
-	// fixme:
-
-#if 1
-	// check the area portals
-	{
-		bestscore = -9999999;
-		*areahint = true;
-		for (p = list; p; p = p->next)
-		{
-			// filter everything that is not an areahint
-			if (!p->areahint)
-				continue;
-
-			plane_t plane = PolygonPlane(p);
-			int score = CalculateSplitPlaneScore(plane, list);
-		
-			if(score > bestscore)
-			{
-				bestscore	= score;
-				bestplane	= plane;
-			}
-		}
-
-		if(bestscore != -9999999)
-			return bestplane;
-	}
-#endif
-	
-	// check the structural polygons
-	{
-		bestscore = -9999999;
-		*areahint = false;
-		for (p = list; p; p = p->next)
-		{
-			// filter areahint polygons
-			if (p->areahint)
-				continue;
-
-			plane_t plane = PolygonPlane(p);
-			int score = CalculateSplitPlaneScore(plane, list);
-		
-			if(score > bestscore)
-			{
-				bestscore	= score;
-				bestplane	= plane;
-			}
-				
-		}
-
-		return bestplane;
-	}
 }
 
 static void PartitionPolygonList(plane_t plane, bsppoly_t *list, bsppoly_t **sides)
@@ -338,7 +376,7 @@ bsptree_t *BuildTree()
 
 	Message("Building bsp tree\n");
 
-	list = MakePolygonList();
+	list = MakePolygonList(mapdata->faces);
 	
 	tree = MakeEmptyTree();
 	
