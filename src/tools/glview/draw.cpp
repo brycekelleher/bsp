@@ -343,59 +343,55 @@ static void SetPerspectiveMatrix()
 	GL_LoadMatrix(m);
 }
 
-float BufferReadFloat()
+static int readaddr = 0;
+static int endaddr = 0;
+
+static float ReadFloat()
 {
 	float f;
 
-	BufferReadBytes(&f, 4);
+	BufferReadBytes(readaddr, &f, 4);
+	readaddr += 4;
 
 	return f;
 }
 
-int BufferReadInt()
+static int ReadInt()
 {
 	int i;
 
-	BufferReadBytes(&i, 4);
+	BufferReadBytes(readaddr, &i, 4);
+	readaddr += 4;
 
 	return i;
 }
 
-cmdtype_t BufferReadCommand()
+static cmdtype_t ReadCommand()
 {
 	cmdtype_t cmdtype;
 
-	BufferReadBytes(&cmdtype, 4);
+	BufferReadBytes(readaddr, &cmdtype, 4);
+	readaddr += 4;
 
 	return cmdtype;
 }
 
-static void ProcessEnd(void *cmd)
-{
-	BufferRewind();
-}
-
-static void ProcessFlush(void *cmd)
-{
-	BufferFlush();
-}
-
-static void ProcessColor(void *cmd)
+static void ProcessColor()
 {
 	float r, g, b, a;
 
-	r = BufferReadFloat();
-	g = BufferReadFloat();
-	b = BufferReadFloat();
-	a = BufferReadFloat();
+	r = ReadFloat();
+	g = ReadFloat();
+	b = ReadFloat();
+	a = ReadFloat();
 
 	glColor4f(r, g, b, a);
 }
 
-static void ProcessCull(void *cmd)
+static void ProcessCull()
 {
-	int mode = BufferReadInt();
-	if(mode == 0)
+	int mode = ReadInt();
+	if (mode == 0)
 	{
 		glDisable(GL_CULL_FACE);
 	}
@@ -411,19 +407,19 @@ static void ProcessCull(void *cmd)
 	}
 }
 
-static void ProcessLines(void *cmd)
+static void ProcessLines()
 {
 	int numvertices;
 	float x, y, z;
 
-	numvertices = BufferReadInt();
+	numvertices = ReadInt();
 
 	glBegin(GL_LINES);
-	while(numvertices)
+	while (numvertices)
 	{
-		x = BufferReadFloat();
-		y = BufferReadFloat();
-		z = BufferReadFloat();
+		x = ReadFloat();
+		y = ReadFloat();
+		z = ReadFloat();
 
 		glVertex3f(x, y, z);
 		numvertices--;
@@ -431,19 +427,19 @@ static void ProcessLines(void *cmd)
 	glEnd();
 }
 
-static void ProcessTriangles(void *cmd)
+static void ProcessTriangles()
 {
 	int numvertices;
 	float x, y, z;
 
-	numvertices = BufferReadInt();
+	numvertices = ReadInt();
 
 	glBegin(GL_TRIANGLES);
-	while(numvertices)
+	while (numvertices)
 	{
-		x = BufferReadFloat();
-		y = BufferReadFloat();
-		z = BufferReadFloat();
+		x = ReadFloat();
+		y = ReadFloat();
+		z = ReadFloat();
 
 		glVertex3f(x, y, z);
 		numvertices--;
@@ -456,39 +452,40 @@ static void DispatchCommand(cmdtype_t cmdtype)
 	struct cmdinfo_t
 	{
 		cmdtype_t type;
-		void	(*Func)(void*);
+		void	(*Func)();
 	};
 
 	static cmdinfo_t cmdtab[] =
 	{
-		{ CMD_FLUSH,	ProcessFlush },
-		{ CMD_END,	ProcessEnd },
 		{ CMD_COLOR,	ProcessColor },
 		{ CMD_CULL,	ProcessCull },
 		{ CMD_LINES,	ProcessLines },
 		{ CMD_TRIANGLES,	ProcessTriangles }
 	};
 
-	int i;
-	for(i = 0; i < CMD_NUM_COMMANDS; i++)
+	int i = 0;
+	for(; i < CMD_NUM_COMMANDS; i++)
 		if(cmdtab[i].type == cmdtype)
 			break;
 
 	if(i == CMD_NUM_COMMANDS)
 	{
-		printf("unhandled command\n");
+		Error("unhandled command\n");
 		return;
 	}
 
 	// call the handler
-	cmdtab[i].Func(NULL);
+	cmdtab[i].Func();
 }
 
 static bool ProcessNextCommand()
 {
 	cmdtype_t cmdtype;
 
-	cmdtype = BufferReadCommand();
+	if (readaddr >= endaddr)
+		return false;
+
+	cmdtype = ReadCommand();
 
 	DispatchCommand(cmdtype);
 
@@ -497,12 +494,12 @@ static bool ProcessNextCommand()
 
 static void ProcessCommands()
 {
+	readaddr	= 0;
+	endaddr		= BufferCommitAddr();
+
 	bool done = false;
-	while(!done)
-	{
-		// process the next command in the queue
+	while (readaddr < endaddr)
 		done = ProcessNextCommand();
-	}
 }
 
 static void BeginFrame()
@@ -510,8 +507,6 @@ static void BeginFrame()
 	glClearColor(0.3f, 0.3f, 0.3f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
-	//glFrontFace(GL_CW);
-	//glEnable(GL_CULL_FACE);
 
 	SetModelViewMatrix();
 
@@ -631,8 +626,10 @@ void DrawInit(int argc, char *argv[])
 	glutIdleFunc(IdleFunc);
 }
 
-int DrawMain()
+int DrawMain(int argc, char *argv[])
 {
+	DrawInit(argc, argv);
+
 	glutMainLoop();
 
 	return 0;

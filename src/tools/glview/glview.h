@@ -28,15 +28,17 @@ void Warning(const char *warning, ...);
 // command buffer
 void BufferInit();
 void BufferWriteBytes(void *data, int numbytes);
-void BufferReadBytes(void *data, int numbytes);
+void BufferReadBytes(unsigned int addr, void *data, int numbytes);
 void BufferFlush();
-void BufferRewind();
+void BufferCommit();
+int BufferWriteAddr();
+int BufferCommitAddr();
 
 // file parsing
 void Read(FILE *fp);
 
 // rendering
 void DrawInit(int argc, char *argv[]);
-int DrawMain();
+int DrawMain(int argc, char *argv[]);
 
 #endif

@@ -4,8 +4,8 @@
 struct buffer_t
 {
 	unsigned char *data;
-	int readpos;
-	int writepos;
+	int wpos;
+	int cpos;
 };
 
 buffer_t buffer;
@@ -16,43 +16,47 @@ buffer_t buffer;
 void BufferInit()
 {
 	buffer.data = (unsigned char*)malloc(32 * 1024 * 1024);
-	buffer.readpos = 0;
-	buffer.writepos = 0;
+	buffer.wpos = buffer.cpos = 0;
 }
 
 void BufferWriteBytes(void *data, int numbytes)
 {
 	unsigned char *src = (unsigned char*)data;
-	unsigned char *dst = (unsigned char*)(buffer.data + buffer.writepos);
+	unsigned char *dst = (unsigned char*)(buffer.data + buffer.wpos);
 
-	for(int i = 0; i < numbytes; i++)
-	{
+	for (int i = 0; i < numbytes; i++)
 		dst[i] = src[i];
-	}
 
-	buffer.writepos += numbytes;
+	buffer.wpos += numbytes;
 }
 
-void BufferReadBytes(void *data, int numbytes)
+// fixme: assert that the address is valid
+void BufferReadBytes(unsigned int addr, void *data, int numbytes)
 {
-	unsigned char *src = (unsigned char*)(buffer.data + buffer.readpos);
+	unsigned char *src = (unsigned char*)(buffer.data + addr);
 	unsigned char *dst = (unsigned char*)data;
 
-	for(int i = 0; i < numbytes; i++)
+	for (int i = 0; i < numbytes; i++)
 		dst[i] = src[i];
-
-	buffer.readpos += numbytes;
 }
 
 void BufferFlush()
 {
-	// reset the buffer write position to the start
-	buffer.writepos = 0;
+	buffer.wpos = 0;
 }
 
-void BufferRewind()
+void BufferCommit()
 {
-	// reset the buffer read position to the start
-	buffer.readpos = 0;
+	buffer.cpos = buffer.wpos;
+}
+
+int BufferWriteAddr()
+{
+	return buffer.wpos;
+}
+
+int BufferCommitAddr()
+{
+	return buffer.cpos;
 }
 

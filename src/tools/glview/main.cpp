@@ -44,6 +44,15 @@ static void ProcessCommandLine(int argc, char *argv[])
 static void PrintUsage()
 {}
 
+static void ReadImage(FILE *fp)
+{
+	int c;
+
+	BufferFlush();
+	while ((c = fgetc(fp)) != EOF)
+		BufferWriteBytes(&c, 1);
+	BufferCommit();
+}
 
 //
 // Main
@@ -52,23 +61,22 @@ int main(int argc, char *argv[])
 {
 	BufferInit();
 
-	DrawInit(argc, argv);
-
 	for(int i = 1; i < argc; i++)
 	{
 		char *filename = argv[i];
 
-		FILE *fp = fopen(filename, "r");
+		FILE *fp = fopen(filename, "rb");
 		if(!fp)
 		{
 			printf("couldn't open file \"%s\"", filename);
 			continue;
 		}
 		
-		Read(fp);
+		ReadImage(fp);
 	}
 
-	DrawMain();
+	DrawMain(argc, argv);
 
 	return 0;
 }
+
