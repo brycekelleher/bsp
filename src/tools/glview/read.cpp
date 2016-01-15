@@ -93,12 +93,16 @@ static void ReadColor(FILE *fp)
 	EmitFloat(g);
 	EmitFloat(b);
 	EmitFloat(a);
+
+	BufferCommit();
 }
 
 static void ReadCull(FILE *fp)
 {
 	EmitCommand(CMD_CULL);
 	EmitInt(ReadInt(fp));
+
+	BufferCommit();
 }
 
 static void ReadLine(FILE *fp)
@@ -147,6 +151,8 @@ static void ReadLineList(FILE *fp)
 
 		numvertices--;
 	}
+
+	BufferCommit();
 }
 
 static void ReadTriangle(FILE *fp)
@@ -166,6 +172,8 @@ static void ReadTriangle(FILE *fp)
 		EmitFloat(y);
 		EmitFloat(z);
 	}
+
+	BufferCommit();
 }
 
 static void ReadTriangleList(FILE *fp)
@@ -192,6 +200,8 @@ static void ReadTriangleList(FILE *fp)
 
 		numvertices--;
 	}
+
+	BufferCommit();
 }
 
 static void ReadPolyline(FILE *fp)
@@ -227,6 +237,8 @@ static void ReadPolyline(FILE *fp)
 		EmitFloat(y);
 		EmitFloat(z);
 	}
+
+	BufferCommit();
 }
 
 static void ReadPolygon(FILE *fp)
@@ -272,6 +284,8 @@ static void ReadPolygon(FILE *fp)
 		EmitFloat(y);
 		EmitFloat(z);
 	}
+
+	BufferCommit();
 }
 
 //
@@ -290,7 +304,9 @@ void Read(FILE *fp)
 			continue;
 		}
 
-		if (!strcmp("color", token))
+		if (!strcmp("flush", token))
+			BufferFlush();
+		else if (!strcmp("color", token))
 			ReadColor(fp);
 		else if (!strcmp("cull", token))
 			ReadCull(fp);
@@ -311,8 +327,5 @@ void Read(FILE *fp)
 		else if (!strcmp("polygon", token))
 			ReadPolygon(fp);
 	}
-
-	// terminate the command buffer
-	EmitCommand(CMD_END);
 }
 

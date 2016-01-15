@@ -3,7 +3,7 @@ CXX		= clang
 CFLAGS		= -g -ggdb -DGL_GLEXT_PROTOTYPES
 CXXFLAGS	= -g -ggdb -DGL_GLEXT_PROTOTYPES
 OBJECTS 	= read.o draw.o buffer.o main.o
-LDLIBS		= -lGL -lglut -lm
+LDLIBS		= -lGL -lglut -lm -lpthread
 BIN		= glview
 
 ifeq ($(APPLE),1)

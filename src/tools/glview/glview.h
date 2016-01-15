@@ -15,18 +15,11 @@ enum cmdtype_t
 	CMD_NUM_COMMANDS
 };
 
-// don't think this is used...
-struct cmd_t
-{
-	int		size;
-	cmdtype_t	type;
-};
-
 void Error(const char *error, ...);
 void Warning(const char *warning, ...);
 
 // command buffer
-void BufferInit();
+void BufferInit(int numbytes);
 void BufferWriteBytes(void *data, int numbytes);
 void BufferReadBytes(unsigned int addr, void *data, int numbytes);
 void BufferFlush();

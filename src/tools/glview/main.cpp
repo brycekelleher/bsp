@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
+#include <pthread.h>
 #include "glview.h"
 
 // ==============================================
@@ -36,7 +38,9 @@ void Warning(const char *warning, ...)
 }
 
 static void ProcessEnviromentVariables(int argc, char *argv[])
-{}
+{
+	char *buffersizestr = getenv("GLVIEW_BUFFER_SIZE");
+}
 
 static void ProcessCommandLine(int argc, char *argv[])
 {}
@@ -44,38 +48,111 @@ static void ProcessCommandLine(int argc, char *argv[])
 static void PrintUsage()
 {}
 
-static void ReadImage(FILE *fp)
+#if 0
+static void ReadBinaryImage(FILE *fp)
+{
+	int c;
+	while ((c = fgetc(fp)) != EOF)
+	{
+		printf("%x\n", c);
+		BufferWriteBytes(&c, 1);
+	}
+	BufferCommit();
+	printf("committed buffer\n");
+}
+#endif
+
+#if 0
+// this is for stdin which may not be eof terminated (eg driven by netcat or fifo)
+static void ReadBinaryImageStream(FILE *fp)
 {
 	int c;
 
-	BufferFlush();
 	while ((c = fgetc(fp)) != EOF)
+	{
+		printf("%x\n", c);
 		BufferWriteBytes(&c, 1);
-	BufferCommit();
+		BufferCommit();
+	}
+	printf("got eof\n");
+}
+#endif
+
+static int gargc;
+static char **gargv;
+
+static void FifoReadLoop()
+{
+	while(1)
+	{
+		static const char *fifoname = "/tmp/f";
+		FILE *fp = fopen(fifoname, "rb");
+		if(!fp)
+			Error("couldn't open fifo \"%s\"", fifoname);
+
+		Read(fp);
+	}
 }
 
-//
-// Main
-//
-int main(int argc, char *argv[])
+static void *FrontEndThread(void *args)
 {
-	BufferInit();
+	int argc = gargc;
+	char **argv = gargv;
 
-	for(int i = 1; i < argc; i++)
+	int i = 1;
+	for (; i < argc && argv[i][0] == '-'; i++)
 	{
-		char *filename = argv[i];
-
-		FILE *fp = fopen(filename, "rb");
-		if(!fp)
+		if (!strcmp(argv[i], "--fifo"))
 		{
-			printf("couldn't open file \"%s\"", filename);
-			continue;
+			FifoReadLoop();
+			return EXIT_SUCCESS;
 		}
-		
-		ReadImage(fp);
 	}
 
+	if (i == argc)
+	{
+		Read(stdin);
+	}
+	else
+	{
+		for (; i < argc; i++)
+		{
+			char *filename = argv[i];
+			FILE *fp = fopen(filename, "rb");
+			if(!fp)
+				Error("couldn't open file \"%s\"", filename);
+			
+			Read(fp);
+		}
+	}
+
+	return EXIT_SUCCESS;
+}
+
+static void *DrawThread(void *args)
+{
+	int argc = gargc;
+	char **argv = gargv;
+
 	DrawMain(argc, argv);
+	return EXIT_SUCCESS;
+}
+
+int main(int argc, char *argv[])
+{
+	gargc = argc;
+	gargv = argv;
+
+	BufferInit(32 * 1024 * 1024);
+
+	BufferFlush();
+
+	pthread_t front, draw;
+	pthread_create(&front, NULL, FrontEndThread, NULL);
+	pthread_create(&draw, NULL, DrawThread, NULL);
+
+	pthread_join(front, NULL);
+	pthread_join(draw, NULL);
 
 	return 0;
 }

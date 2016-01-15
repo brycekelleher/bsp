@@ -10,13 +10,24 @@ struct buffer_t
 
 buffer_t buffer;
 
-//
-// command buffer code
-//
-void BufferInit()
+void BufferFlush()
 {
-	buffer.data = (unsigned char*)malloc(32 * 1024 * 1024);
 	buffer.wpos = buffer.cpos = 0;
+}
+
+void BufferCommit()
+{
+	buffer.cpos = buffer.wpos;
+}
+
+int BufferWriteAddr()
+{
+	return buffer.wpos;
+}
+
+int BufferCommitAddr()
+{
+	return buffer.cpos;
 }
 
 void BufferWriteBytes(void *data, int numbytes)
@@ -40,23 +51,11 @@ void BufferReadBytes(unsigned int addr, void *data, int numbytes)
 		dst[i] = src[i];
 }
 
-void BufferFlush()
+void BufferInit(int numbytes)
 {
-	buffer.wpos = 0;
+	buffer.data = (unsigned char*)malloc(numbytes);
+
+	BufferFlush();
 }
 
-void BufferCommit()
-{
-	buffer.cpos = buffer.wpos;
-}
-
-int BufferWriteAddr()
-{
-	return buffer.wpos;
-}
-
-int BufferCommitAddr()
-{
-	return buffer.cpos;
-}
 
