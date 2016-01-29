@@ -407,6 +407,17 @@ static void ProcessCull()
 	}
 }
 
+static void ProcessFill()
+{
+	int mode = ReadInt();
+	if (mode == 0)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	else if (mode == 1)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	else if (mode == 2)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+}
+
 static void ProcessLines()
 {
 	int numvertices;
@@ -459,6 +470,7 @@ static void DispatchCommand(cmdtype_t cmdtype)
 	{
 		{ CMD_COLOR,	ProcessColor },
 		{ CMD_CULL,	ProcessCull },
+		{ CMD_FILL,	ProcessFill },
 		{ CMD_LINES,	ProcessLines },
 		{ CMD_TRIANGLES,	ProcessTriangles }
 	};

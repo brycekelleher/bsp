@@ -105,6 +105,23 @@ static void ReadCull(FILE *fp)
 	BufferCommit();
 }
 
+static void ReadFill(FILE *fp)
+{
+	EmitCommand(CMD_FILL);
+
+	char *token = ReadToken(fp);
+	if (!strcmp(token, "fill") || !strcmp(token, "solid"))
+		EmitInt(0);
+	else if (!strcmp(token, "line"))
+		EmitInt(1);
+	else if (strcmp(token, "point"))
+		EmitInt(2);
+	else
+		EmitInt(atoi(token));
+
+	BufferCommit();
+}
+
 static void ReadLine(FILE *fp)
 {
 	float x, y, z;
@@ -310,6 +327,8 @@ void Read(FILE *fp)
 			ReadColor(fp);
 		else if (!strcmp("cull", token))
 			ReadCull(fp);
+		else if (!strcmp("fill", token))
+			ReadFill(fp);
 		else if (!strcmp("line", token))
 			ReadLine(fp);
 		else if (!strcmp("linelist", token))
