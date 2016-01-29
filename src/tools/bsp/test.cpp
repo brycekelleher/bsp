@@ -125,3 +125,80 @@ static void LineQuery(bsptree_t *tree)
 }
 #endif
 
+#if 0
+// takes a polygon as input an returns a list of face fragments and the leafs that they belong to
+static leafface_t *PushFaceIntoTree(bspnode_t *n, polygon_t *p)
+{
+	bspnode_t	*nstack[256];
+	polygon_t	*pstack[256];
+	int		sp = 0;
+
+	nstack[sp]	= n;
+	pstack[sp]	= p;
+	sp++;
+
+	printf("processing face...\n");
+
+	while (sp)
+	{
+		sp--;
+		n = nstack[sp];
+		p = pstack[sp];
+
+		printf("n=%p, child0=%p, child1=%p\n", n, n->children[0], n->children[1]);
+
+		if (!n->children[0] && !n->children[1])
+		{
+			// only emit polygons into empty leafs
+			if (!n->empty)
+				continue;
+
+			printf("face in leaf %p\n", n);
+			PrintPolygon(p);
+			continue;
+		}
+
+		int side = Polygon_OnPlaneSide(p, n->plane, CLIP_EPSILON);
+
+		if (side == PLANE_SIDE_FRONT)
+		{
+			nstack[sp]	= n->children[0];
+			pstack[sp]	= p;
+			sp++;
+		}
+		else if (side == PLANE_SIDE_BACK)
+		{
+			nstack[sp]	= n->children[1];
+			pstack[sp]	= p;
+			sp++;
+		}
+		else if (side == PLANE_SIDE_ON)
+		{
+			float dot = Dot(n->plane.GetNormal(), Polygon_Normal(p));
+
+			// map 0 to the front child and 1 to the back child
+			int facing = (dot > 0.0f ? 0 : 1);
+
+			nstack[sp]	= n->children[facing];
+			pstack[sp]	= p;
+			sp++;
+		}
+		else if (side == PLANE_SIDE_CROSS)
+		{
+			polygon_t *f, *b;
+			Polygon_SplitWithPlane(p, n->plane, CLIP_EPSILON, &f, &b);
+
+			nstack[sp]	= n->children[0];
+			pstack[sp]	= f;
+			sp++;
+			nstack[sp]	= n->children[1];
+			pstack[sp]	= b;
+			sp++;
+		}
+	}
+
+	return NULL;
+}
+#endif
+
+

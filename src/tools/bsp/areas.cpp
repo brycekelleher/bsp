@@ -33,17 +33,17 @@ static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
 		polygon_t *f, *b;
 		Polygon_SplitWithPlane(p, n->plane, CLIP_EPSILON, &f, &b);
 
-		FilterPolygonIntoLeaf(n, f);
-		FilterPolygonIntoLeaf(n, b);
+		FilterPolygonIntoLeaf(n->children[0], f);
+		FilterPolygonIntoLeaf(n->children[1], b);
 	}
 }
 
 void MarkEmptyLeafs(bsptree_t *tree)
 {
-	// Iterate all map faces, filter them into the tree
+	// iterate all map faces, filter them into the tree
 	for (mapface_t *f = mapdata->faces; f; f = f->next)
 	{
-		// Fixme: need a method to filter only structural polygons
+		// fixme: need a method to filter only structural polygons
 		if (f->areahint)
 			continue;
 

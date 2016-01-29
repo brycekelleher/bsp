@@ -24,6 +24,20 @@ typedef struct trisurf_s
 
 } trisurf_t;
 
+typedef struct leafface_s
+{
+	struct leafface_s	*areanext;
+	struct leafface_s	*nodenext;
+			
+	struct bspnode_s	*leaf;
+	struct area_s		*area;
+	polygon_t	*polygon;
+
+} leafface_t;
+
+
+
+
 
 
 typedef struct mapface_s
@@ -71,6 +85,7 @@ typedef struct area_s
 
 	// area render surfaces
 	struct trisurf_s	*trisurf;
+	struct leafface_s	*leaffaces;
 
 	// output number
 	int			areanumber;
@@ -102,6 +117,9 @@ typedef struct bspnode_s
 	// areas
 	struct area_s		*area;
 	struct bspnode_s	*areanext;
+
+	// leaf faces
+	struct leafface_s	*leaffaces;
 
 	// flags
 	bool			empty;
@@ -167,9 +185,8 @@ void DebugDumpAreaSurfaces(bsptree_t *tree);
 // main
 void *Malloc(int numbytes);
 void *MallocZeroed(int numbytes);
-
-// token.cpp
-//char* ReadToken(FILE *fp);
+void PrintPolygon(polygon_t *p);
+void PrintNode(bspnode_t *n);
 
 // map file
 void ReadMap(char *filename);

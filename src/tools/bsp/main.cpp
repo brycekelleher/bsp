@@ -55,6 +55,28 @@ void *MallocZeroed(int numbytes)
 }
 
 // ==============================================
+// Debugging functions
+
+void PrintPolygon(polygon_t *p)
+{
+	printf("polygon %p, numvertices=%i, maxvertices=%i\n", p, p->numvertices, p->maxvertices);
+	for(int i = 0; i < p->numvertices; i++)
+		printf("vertex %i: (%f %f %f)\n",
+			i,
+			p->vertices[i][0],
+			p->vertices[i][1],
+			p->vertices[i][2]);
+}
+
+void PrintNode(bspnode_t *n)
+{
+	printf("plane=(%f, %f, %f, %f)", n->plane[0], n->plane[1], n->plane[2], n->plane[3]);
+	printf(" ");
+	printf("children=(%p, %p)", n->children[0], n->children[1]);
+	printf("\n");
+}
+
+// ==============================================
 // Main
 
 static void PrintUsage()
@@ -82,8 +104,8 @@ static void ProcessModel()
 
 	// shiny new surface building code
 	{
-		extern void BuildSurfaces(bsptree_t*);
-		BuildSurfaces(tree);
+		extern void BuildAreaModels(bsptree_t *tree);
+		BuildAreaModels(tree);
 	}
 
 	WriteBinary(tree);
@@ -99,7 +121,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	for(i = 1; argv[i][0] == '-'; i++)
+	for(i = 1; i < argc && argv[i][0] == '-'; i++)
 	{
 		if(!strcmp(argv[i], "-o"))
 		{

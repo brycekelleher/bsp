@@ -46,7 +46,9 @@ static void ProcessCommandLine(int argc, char *argv[])
 {}
 
 static void PrintUsage()
-{}
+{
+	printf("--fifo read from a fifo instead of stdin or input files\n");
+}
 
 #if 0
 static void ReadBinaryImage(FILE *fp)
@@ -106,6 +108,11 @@ static void *FrontEndThread(void *args)
 		{
 			FifoReadLoop();
 			return EXIT_SUCCESS;
+		}
+		else if (!strcmp(argv[i], "--help"))
+		{
+			PrintUsage();
+			return EXIT_SUCCESS;	
 		}
 	}
 

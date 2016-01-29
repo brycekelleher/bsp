@@ -3,17 +3,6 @@
 // global debug file pointer
 FILE *debugfp = NULL;
 
-void DebugPrintfPolygon(FILE *fp, polygon_t *p)
-{
-	fprintf(stdout, "polygon %p, numvertices=%i, maxvertices=%i\n", p, p->numvertices, p->maxvertices);
-	for(int i = 0; i < p->numvertices; i++)
-		fprintf(fp, "vertex %i: (%f %f %f)\n",
-			i,
-			p->vertices[i][0],
-			p->vertices[i][1],
-			p->vertices[i][2]);
-}
-
 void DebugWritePolygon(FILE *fp, polygon_t *p)
 {
 	fprintf(fp, "polygon\n");
