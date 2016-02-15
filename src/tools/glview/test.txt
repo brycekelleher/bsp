@@ -1,3 +1,4 @@
+fill line
 color 1 0 0 0
 polygon
 4
