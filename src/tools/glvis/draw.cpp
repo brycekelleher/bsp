@@ -9,7 +9,7 @@
 #endif
 
 #include <GL/freeglut.h>
-#include "glview.h"
+#include "glvis.h"
 
 #define PI 3.14159265358979323846f
 

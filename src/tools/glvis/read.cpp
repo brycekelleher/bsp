@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "glview.h"
+#include "glvis.h"
 
 static void EmitCommand(cmdtype_t cmdtype)
 {

@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include "glview.h"
+#include "glvis.h"
 
 // ==============================================
 // errors and warnings
