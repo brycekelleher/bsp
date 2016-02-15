@@ -1,4 +1,4 @@
-BIN		= dumpbsp
+BIN		= bspdump
 CC		= clang
 CXX		= clang
 LD		= clang
