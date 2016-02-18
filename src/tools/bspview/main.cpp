@@ -341,9 +341,10 @@ static void LoadAreas(FILE *fp)
 	}
 }
 
-static void LoadModel(FILE *fp)
+static void LoadWorldModel(FILE *fp)
 {
 	LoadNodes(fp);
+
 	LoadAreas(fp);
 }
 

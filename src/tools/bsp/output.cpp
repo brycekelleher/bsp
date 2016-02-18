@@ -37,16 +37,11 @@ static void EmitBox3(box3 box, FILE *fp)
 	EmitFloat(box.max[2], fp);
 }
 
-static int NumberNodesRecursive(bspnode_t *n, int number)
+static void EmitHeader(const char *symbol, FILE * fp)
 {
-	if (!n)
-		return number;
-
-	n->nodenumber = number++;
-	number = NumberNodesRecursive(n->children[0], number);
-	number = NumberNodesRecursive(n->children[1], number);
-
-	return number;
+	char header[8] = { 0 };
+	strncpy(header, symbol, 8);
+	WriteBytes(header, 8, fp);
 }
 
 #if 0
@@ -89,6 +84,7 @@ static void EmitNode(bspnode_t *n, FILE *fp)
 }
 #endif
 
+#if 0
 // emit nodes in post-order. This order must match how the nodes were numbered
 // an alternative would be to write these out iteratively and fseek to the correct position
 static void EmitNode(bspnode_t *n, FILE *fp)
@@ -97,32 +93,89 @@ static void EmitNode(bspnode_t *n, FILE *fp)
 	if (!n)
 		return;
 	
-	// write the node data
-	{
-// disable this to check the node linkage
+	// emit the child node numbers
+	EmitInt((n->children[0] ? n->children[0]->nodenumber : -1), fp);
+	EmitInt((n->children[1] ? n->children[1]->nodenumber : -1), fp);
+
 #if 1
-		EmitPlane(n->plane, fp);
-		EmitBox3(n->box, fp);
-		EmitInt((n->area ? n->area->areanumber : -1), fp);
-		EmitInt(n->empty ? 1 : 0, fp);
+	// write the node data (disable this to check the node linkage)
+	EmitPlane(n->plane, fp);
+	EmitBox3(n->box, fp);
+	EmitInt((n->area ? n->area->areanumber : -1), fp);
+	EmitInt(n->empty ? 1 : 0, fp);
 #endif
+}
+
+static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
+{
+	NumberNodesRecursive(tree->root, 0);
+
+	EmitInt(tree->numnodes, fp);
+	EmitInt(tree->numleafs, fp);
+	
+	for (int i = 0; i < tree->numnodes; i++)
+	{
+		for (bspnode_t *n = tree->nodes; n; n = n->treenext)
+			if (n->nodenumber == i)
+				break;
+
+		EmitNode(n, fp);
+	}
+}
+#endif
+
+static int NumberNodesRecursive(bspnode_t *n, int number)
+{
+	if (!n)
+		return number;
+
+	n->nodenumber = number++;
+	number = NumberNodesRecursive(n->children[0], number);
+	number = NumberNodesRecursive(n->children[1], number);
+
+	return number;
+}
+
+// search for node with number 'num' and emit the node data into the file stream
+// fixme: split this into a search and emit operation rather than combining both?
+static void EmitNode(int num, bspnode_t *n, FILE *fp)
+{
+	// termination guard
+	if (!n)
+		return;
+
+	// keep searching for the node in the tree
+	if (n->nodenumber != num)
+	{
+		EmitNode(num, n->children[0], fp);
+		EmitNode(num, n->children[1], fp);
+		return;
 	}
 
 	// emit the child node numbers
 	EmitInt((n->children[0] ? n->children[0]->nodenumber : -1), fp);
 	EmitInt((n->children[1] ? n->children[1]->nodenumber : -1), fp);
 
-	// emit the child nodes
-	EmitNode(n->children[0], fp);
-	EmitNode(n->children[1], fp);
+#if 1
+	// write the node data (disable this to check the node linkage)
+	EmitPlane(n->plane, fp);
+	EmitBox3(n->box, fp);
+	EmitInt((n->area ? n->area->areanumber : -1), fp);
+	EmitInt(n->empty ? 1 : 0, fp);
+#endif
 }
 
 static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
 {
+	NumberNodesRecursive(tree->root, 0);
+
+	EmitHeader("nodes", fp);
+
 	EmitInt(tree->numnodes, fp);
 	EmitInt(tree->numleafs, fp);
 	
-	EmitNode(tree->root, fp);
+	for (int i = 0; i < tree->numnodes; i++)
+		EmitNode(i, tree->root, fp);
 }
 
 static void EmitPortal(portal_t *p, FILE *fp)
@@ -191,20 +244,11 @@ static void EmitArea(area_t *a, FILE *fp)
 
 static void EmitAreaBlock(bsptree_t *tree, FILE *fp)
 {
+	NumberAreasRecursive(tree->areas, 0);
+
 	EmitInt(tree->numareas, fp);
 	for (area_t *a = tree->areas; a; a = a->next)
 		EmitArea(a, fp);
-}
-
-static void EmitTree(bsptree_t *tree, FILE *fp)
-{
-	NumberNodesRecursive(tree->root, 0);
-	NumberAreasRecursive(tree->areas, 0);
-
-	EmitNodeBlock(tree, fp);
-	EmitAreaBlock(tree, fp);
-	//EmitPortalBlock(tree, fp);
-	//EmitAreaSurfaces(tree, fp);
 }
 
 void WriteBinary(bsptree_t *tree)
@@ -213,6 +257,12 @@ void WriteBinary(bsptree_t *tree)
 	
 	FILE *fp = FileOpenBinaryWrite(outputfilename);
 	
-	EmitTree(tree, fp);
+	EmitNodeBlock(tree, fp);
+
+	//EmitAreaBlock(tree, fp);
+
+	//EmitPortalBlock(tree, fp);
+
+	//EmitAreaSurfaces(tree, fp);
 }
 
