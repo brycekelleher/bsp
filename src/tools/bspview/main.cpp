@@ -130,7 +130,6 @@ typedef struct portal_s
 	bspnode_t		*srcleaf;
 	bspnode_t		*dstleaf;
 
-	// fixme: should this use vec3?
 	int 			numvertices;
 	vec3			*vertices;
 
@@ -264,7 +263,7 @@ static void CalculateNormals(surf_t *s)
 	}
 }
 
-static surf_t *LoadSurface(FILE *fp)
+static surf_t *LoadRenderModel(FILE *fp)
 {
 	surf_t *s = (surf_t*)Mem_Alloc(sizeof(surf_t));
 

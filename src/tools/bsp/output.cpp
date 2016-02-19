@@ -187,31 +187,26 @@ static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
 		EmitNode(i, tree->root, fp);
 }
 
-
-static void EmitPortal(portal_t *p, FILE *fp)
+static void EmitPortalBlock(bsptree_t *tree, FILE *fp)
 {
-	EmitInt(p->srcleaf->nodenumber, fp);
-	EmitInt(p->dstleaf->nodenumber, fp);
+	EmitHeader("portals", fp);
 
-	polygon_t *polygon = p->polygon;
-	EmitInt(polygon->numvertices, fp);
-	for (int i = 0; i < polygon->numvertices; i++)
+	EmitInt(tree->numportals, fp);
+	for (portal_t *p = tree->portals; p; p = p->treenext)
 	{
-		EmitFloat(polygon->vertices[i][0], fp);
-		EmitFloat(polygon->vertices[i][1], fp);
-		EmitFloat(polygon->vertices[i][2], fp);
+		EmitInt(p->srcleaf->nodenumber, fp);
+		EmitInt(p->dstleaf->nodenumber, fp);
+
+		polygon_t *polygon = p->polygon;
+		EmitInt(polygon->numvertices, fp);
+		for (int i = 0; i < polygon->numvertices; i++)
+		{
+			EmitFloat(polygon->vertices[i][0], fp);
+			EmitFloat(polygon->vertices[i][1], fp);
+			EmitFloat(polygon->vertices[i][2], fp);
+		}
 	}
 }
-
-static void EmitAreaPortals(area_t *a, FILE *fp)
-{
-	portal_t *p;
-
-	EmitInt(a->numportals, fp);
-	for (p = a->portals; p; p = p->areanext)
-		EmitPortal(p, fp);
-}
-
 
 static void EmitAreaLeaves(area_t *a, FILE *fp)
 {
@@ -224,8 +219,6 @@ static void EmitAreaLeaves(area_t *a, FILE *fp)
 static void EmitArea(area_t *a, FILE *fp)
 {
 	EmitAreaLeaves(a, fp);
-
-	EmitAreaPortals(a, fp);
 }
 
 static void EmitAreaBlock(bsptree_t *tree, FILE *fp)
@@ -303,9 +296,8 @@ void WriteBinary(bsptree_t *tree)
 
 	EmitAreaBlock(tree, fp);
 
-	{
+	EmitPortalBlock(tree, fp);
 
-		EmitAreaRenderModels(tree, fp);
-	}
+	EmitAreaRenderModels(tree, fp);
 }
 

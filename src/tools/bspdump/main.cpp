@@ -102,66 +102,31 @@ static void DecodeNodes(FILE *fp)
 	}
 }
 
-static void DecodePortal(FILE *fp)
-{
-	int srcleaf = ReadInt(fp);
-	printf("srcleaf: %i\n", srcleaf);
-	int dstleaf = ReadInt(fp);
-	printf("dstleaf: %i\n", dstleaf);
-
-	int numvertices = ReadInt(fp);
-	for (int i = 0; i < numvertices; i++)
-	{
-		float x, y, z;
-		x = ReadFloat(fp);
-		y = ReadFloat(fp);
-		z = ReadFloat(fp);
-
-		printf("vertex %i: %f %f %f\n", i, x, y, z);
-	}
-}
-
-static void DecodePortalBlock(FILE *fp)
+static void DecodePortals(FILE *fp)
 {
 	int numportals = ReadInt(fp);
 	printf("numportals: %i\n", numportals);
 
 	for (int i = 0; i < numportals; i++)
 	{
-		printf("decoding portal\n");
-		DecodePortal(fp);
+		int srcleaf = ReadInt(fp);
+		printf("srcleaf: %i\n", srcleaf);
+
+		int dstleaf = ReadInt(fp);
+		printf("dstleaf: %i\n", dstleaf);
+
+		int numvertices = ReadInt(fp);
+		for (int i = 0; i < numvertices; i++)
+		{
+			float x, y, z;
+			x = ReadFloat(fp);
+			y = ReadFloat(fp);
+			z = ReadFloat(fp);
+
+			printf("vertex %i: %f %f %f\n", i, x, y, z);
+		}
 	}
 }
-
-#if 0
-static void DecodeAreaSurface(FILE *fp)
-{
-	int numvertices = ReadInt(fp);
-	printf("numvertices %i\n", numvertices);
-
-	for (int i = 0; i < numvertices; i++)
-	{
-		float x, y, z;
-		x = ReadFloat(fp);
-		y = ReadFloat(fp);
-		z = ReadFloat(fp);
-
-		printf("vertex %i: %f %f %f\n", i, x, y, z);
-	}
-}
-
-static void DecodeAreaSurfaces(FILE *fp)
-{
-	int numsurfaces = ReadInt(fp);
-	printf("numsurfaces: %i\n", numsurfaces);
-
-	for (int i = 0; i < numsurfaces; i++)
-	{
-		printf("decoding area surface\n");
-		DecodeAreaSurface(fp);
-	}
-}
-#endif
 
 static void DecodeArea(int areanum, FILE *fp)
 {
@@ -169,6 +134,7 @@ static void DecodeArea(int areanum, FILE *fp)
 
 	int numleafs = ReadInt(fp);
 	printf("numleafs: %i\n", numleafs);
+
 	printf("leafs: ");
 	for (int i = 0; i < numleafs; i++)
 	{
@@ -176,10 +142,6 @@ static void DecodeArea(int areanum, FILE *fp)
 		printf("%i", leafnum);
 		printf("%c", (i == numleafs - 1 ? '\n' : ':'));
 	}
-
-	DecodePortalBlock(fp);
-
-	//DecodeAreaSurfaces(fp);
 }
 
 static void DecodeAreas(FILE *fp)
@@ -234,6 +196,8 @@ static void DecodeFile(FILE *fp)
 			DecodeNodes(fp);
 		else if (!strncmp(header, "areas", 8))
 			DecodeAreas(fp);
+		else if (!strncmp(header, "portals", 8))
+			DecodePortals(fp);
 		else if (!strncmp(header, "rmodel", 8))
 			DecodeRenderModels(fp);
 		else
