@@ -1,5 +1,6 @@
 #include "bsp.h"
 
+// fixme: should the mark empty functionality be somewhere else?
 // if the polygon sits on the plane then send the plane down the front or back side depending on whether
 // the polygon normal faces the same direction as the plane
 static void FilterPolygonIntoLeaf(bspnode_t *n, polygon_t *p)
@@ -86,11 +87,9 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 	// link the area to this leaf
 	leaf->area = area;
 
-	//Message("adding leaf %#p\n", leaf);
-
 	for (portal_t *portal = leaf->portals; portal; portal = portal->leafnext)
 	{
-		// don't flow across solid/empty boundaries, leafs already assigned an area or across areahints
+		// don't search across solid/empty boundaries, leafs already assigned an area or across areahints
 		if (portal->srcleaf->empty ^ portal->dstleaf->empty)
 			continue;
 		if (portal->dstleaf->area)
@@ -98,7 +97,7 @@ static void Walk(area_t *area, portal_t *portal, bspnode_t *leaf)
 		if (portal->areahint)
 			continue;
 
-		// flow into the next leaf
+		// search into the next leaf
 		Walk(area, portal, portal->dstleaf);
 	}
 }
@@ -118,9 +117,10 @@ static void FindAreas(bsptree_t *tree)
 		//Message("processing leaf %#p\n", leaf);
 
 		// create a new area
+		// Areas inherit some attibutes from the leaf they are seeded from
 		area_t *area = AllocArea(tree);
+		//area->empty = leaf->empty;
 		Walk(area, NULL, leaf);
-
 	}
 
 	// process all empty leafs

@@ -255,7 +255,7 @@ void BuildAreaModels(bsptree_t *tree)
 
 	//PrintLeafFaces(tree);
 	//WriteGLViewFaces(tree);
-	EmitAreaGeometry(tree);
+	//EmitAreaGeometry(tree);
 }
 
 

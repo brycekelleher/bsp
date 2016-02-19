@@ -19,6 +19,19 @@ static void EmitFloat(float f, FILE *fp)
 	WriteBytes(&f, sizeof(float), fp);
 }
 
+static void EmitString(FILE *fp, const char *format, ...)
+{
+	va_list valist;
+	char buffer[2048];
+	
+	va_start(valist, format);
+	vsprintf(buffer, format, valist);
+	va_end(valist);
+
+	EmitInt(strlen(buffer), fp);
+	fprintf(fp, "%s", buffer);
+}
+
 static void EmitPlane(plane_t plane, FILE *fp)
 {
 	EmitFloat(plane.a, fp);
@@ -156,13 +169,9 @@ static void EmitNode(int num, bspnode_t *n, FILE *fp)
 	EmitInt((n->children[0] ? n->children[0]->nodenumber : -1), fp);
 	EmitInt((n->children[1] ? n->children[1]->nodenumber : -1), fp);
 
-#if 1
-	// write the node data (disable this to check the node linkage)
+	// write the node data
 	EmitPlane(n->plane, fp);
 	EmitBox3(n->box, fp);
-	EmitInt((n->area ? n->area->areanumber : -1), fp);
-	EmitInt(n->empty ? 1 : 0, fp);
-#endif
 }
 
 static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
@@ -177,6 +186,7 @@ static void EmitNodeBlock(bsptree_t *tree, FILE *fp)
 	for (int i = 0; i < tree->numnodes; i++)
 		EmitNode(i, tree->root, fp);
 }
+
 
 static void EmitPortal(portal_t *p, FILE *fp)
 {
@@ -202,53 +212,85 @@ static void EmitAreaPortals(area_t *a, FILE *fp)
 		EmitPortal(p, fp);
 }
 
-static void EmitTriSurf(trisurf_t *s, FILE *fp)
-{
-	EmitInt(s->numvertices, fp);
 
-	for (int i = 0; i < s->numvertices; i++)
-	{
-		EmitFloat(s->vertices[i][0], fp);
-		EmitFloat(s->vertices[i][1], fp);
-		EmitFloat(s->vertices[i][2], fp);
-	}
-}
-
-static void EmitAreaSurfaces(area_t *a, FILE *fp)
-{
-	trisurf_t *s = a->trisurf;
-	if (!s)
-	{
-		EmitInt(0, fp);
-		return;
-	}
-
-	EmitInt(1, fp);
-	EmitTriSurf(s, fp);
-}
-
-
-static void EmitArea(area_t *a, FILE *fp)
+static void EmitAreaLeaves(area_t *a, FILE *fp)
 {
 	// emit the leaf numbers
 	EmitInt(a->numleafs, fp);
 	for (bspnode_t *n = a->leafs; n; n = n->areanext)
 		EmitInt(n->nodenumber, fp);
+}
 
-	// emit the area portal
+static void EmitArea(area_t *a, FILE *fp)
+{
+	EmitAreaLeaves(a, fp);
+
 	EmitAreaPortals(a, fp);
-
-	// emit the render surfaces
-	EmitAreaSurfaces(a, fp);
 }
 
 static void EmitAreaBlock(bsptree_t *tree, FILE *fp)
 {
 	NumberAreasRecursive(tree->areas, 0);
 
+	EmitHeader("areas", fp);
+
 	EmitInt(tree->numareas, fp);
+
 	for (area_t *a = tree->areas; a; a = a->next)
 		EmitArea(a, fp);
+}
+
+static void EmitAreaRenderModel(area_t *a, FILE *fp)
+{
+	int numvertices = 0;
+	int numindicies = 0;
+
+	EmitHeader("rmodel", fp);
+	EmitString(fp, "area%04i", a->areanumber);
+
+	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
+	{
+		numvertices += lf->polygon->numvertices;
+		numindicies += (lf->polygon->numvertices - 2) * 3;
+	}
+
+	EmitInt(numvertices, fp);
+	EmitInt(numindicies, fp);
+
+	// emit the vertex block
+	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
+	{
+		polygon_t *p = lf->polygon;
+
+		for (int i = 0; i < p->numvertices; i++)
+		{
+			EmitFloat(p->vertices[i][0], fp);
+			EmitFloat(p->vertices[i][1], fp);
+			EmitFloat(p->vertices[i][2], fp);
+		}
+	}
+
+	// emit the index block
+	int vertex = 0;
+	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
+	{
+		polygon_t *p = lf->polygon;
+
+		for (int i = 0; i < p->numvertices - 2; i++)
+		{
+			EmitInt( 0                       + vertex, fp);
+			EmitInt((i + 1) % p->numvertices + vertex, fp);
+			EmitInt((i + 2) % p->numvertices + vertex, fp);
+		}
+
+		vertex += p->numvertices;
+	}
+}
+
+static void EmitAreaRenderModels(bsptree_t *tree, FILE *fp)
+{
+	for (area_t *a = tree->areas; a; a = a->next)
+		EmitAreaRenderModel(a, fp);
 }
 
 void WriteBinary(bsptree_t *tree)
@@ -259,10 +301,11 @@ void WriteBinary(bsptree_t *tree)
 	
 	EmitNodeBlock(tree, fp);
 
-	//EmitAreaBlock(tree, fp);
+	EmitAreaBlock(tree, fp);
 
-	//EmitPortalBlock(tree, fp);
+	{
 
-	//EmitAreaSurfaces(tree, fp);
+		EmitAreaRenderModels(tree, fp);
+	}
 }
 

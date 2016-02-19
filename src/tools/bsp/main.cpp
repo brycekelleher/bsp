@@ -101,13 +101,9 @@ static void ProcessModel()
 	BuildPortals(tree);
 
 	BuildAreas(tree);
-
-#if 0
-	// shiny new surface building code
-	{
-		extern void BuildAreaModels(bsptree_t *tree);
-		BuildAreaModels(tree);
-	}
+#if 1
+	extern void BuildAreaModels(bsptree_t *tree);
+	BuildAreaModels(tree);
 #endif
 
 	WriteBinary(tree);

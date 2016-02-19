@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 // ==============================================
 // errors and warnings
@@ -58,40 +59,15 @@ float ReadFloat(FILE *fp)
 	return f;
 }
 
-static void DecodeNode(int nodenum, FILE *fp)
+static int ReadString(char *s, FILE *fp)
 {
-	printf("node %i:\n", nodenum);
-
-	float a, b, c, d;
-	a = ReadFloat(fp);
-	b = ReadFloat(fp);
-	c = ReadFloat(fp);
-	d = ReadFloat(fp);
-	printf("plane: %f, %f, %f, %f\n", a, b, c, d);
-
-	float min[3], max[3];
-	min[0] = ReadFloat(fp);
-	min[1] = ReadFloat(fp);
-	min[2] = ReadFloat(fp);
-	max[0] = ReadFloat(fp);
-	max[1] = ReadFloat(fp);
-	max[2] = ReadFloat(fp);
-	printf("boxmin: %f, %f, %f\n", min[0], min[1], min[2]);
-	printf("boxmax: %f, %f, %f\n", max[0], max[1], max[2]);
-
-	int areanum = ReadInt(fp);
-	printf("areanum: %i\n", areanum);
-
-	int empty = ReadInt(fp);
-	printf("empty: %i\n", empty);
-
-	int childnum[2];
-	childnum[0] = ReadInt(fp);
-	childnum[1] = ReadInt(fp);
-	printf("children: %i, %i\n", childnum[0], childnum[1]);
+	int len = ReadInt(fp);
+	ReadBytes(s, len, fp);
+	s[len] = 0;
+	return len;
 }
 
-static void DecodeNodeBlock(FILE *fp)
+static void DecodeNodes(FILE *fp)
 {
 	int numnodes = ReadInt(fp);
 	printf("numnodes: %i\n", numnodes);
@@ -99,7 +75,31 @@ static void DecodeNodeBlock(FILE *fp)
 	printf("numleafs: %i\n", numleafs);
 
 	for (int i = 0; i < numnodes; i++)
-		DecodeNode(i, fp);
+	{
+		printf("node %i:\n", i);
+
+		int childnum[2];
+		childnum[0] = ReadInt(fp);
+		childnum[1] = ReadInt(fp);
+		printf("children: %i, %i\n", childnum[0], childnum[1]);
+
+		float a, b, c, d;
+		a = ReadFloat(fp);
+		b = ReadFloat(fp);
+		c = ReadFloat(fp);
+		d = ReadFloat(fp);
+		printf("plane: %f, %f, %f, %f\n", a, b, c, d);
+
+		float min[3], max[3];
+		min[0] = ReadFloat(fp);
+		min[1] = ReadFloat(fp);
+		min[2] = ReadFloat(fp);
+		max[0] = ReadFloat(fp);
+		max[1] = ReadFloat(fp);
+		max[2] = ReadFloat(fp);
+		printf("boxmin: %f, %f, %f\n", min[0], min[1], min[2]);
+		printf("boxmax: %f, %f, %f\n", max[0], max[1], max[2]);
+	}
 }
 
 static void DecodePortal(FILE *fp)
@@ -133,6 +133,7 @@ static void DecodePortalBlock(FILE *fp)
 	}
 }
 
+#if 0
 static void DecodeAreaSurface(FILE *fp)
 {
 	int numvertices = ReadInt(fp);
@@ -160,6 +161,7 @@ static void DecodeAreaSurfaces(FILE *fp)
 		DecodeAreaSurface(fp);
 	}
 }
+#endif
 
 static void DecodeArea(int areanum, FILE *fp)
 {
@@ -177,23 +179,66 @@ static void DecodeArea(int areanum, FILE *fp)
 
 	DecodePortalBlock(fp);
 
-	DecodeAreaSurfaces(fp);
+	//DecodeAreaSurfaces(fp);
 }
 
-static void DecodeAreaBlock(FILE *fp)
+static void DecodeAreas(FILE *fp)
 {
 	int numareas = ReadInt(fp);
 	printf("numareas: %i\n", numareas);
-
 
 	for (int i = 0; i < numareas; i++)
 		DecodeArea(i, fp);
 }
 
+static void DecodeRenderModels(FILE *fp)
+{
+	char name[256];
+	ReadString(name, fp);
+	printf("rmodel \"%s\"\n", name);
+
+	int numvertices = ReadInt(fp);
+	printf("numvertices %i\n", numvertices);
+
+	int numindicies = ReadInt(fp);
+	printf("numindicies %i\n", numindicies);
+
+	for (int i = 0; i < numvertices; i++)
+	{
+		float x, y, z;
+		x = ReadFloat(fp);
+		y = ReadFloat(fp);
+		z = ReadFloat(fp);
+
+		printf("vertex %i: %f %f %f\n", i, x, y, z);
+	}
+
+	for (int i = 0; i < numindicies / 3; i++)
+	{
+		int i0, i1, i2;
+		i0 = ReadInt(fp);
+		i1 = ReadInt(fp);
+		i2 = ReadInt(fp);
+
+		printf("tri %i: %i %i %i\n", i, i0, i1, i2);
+	}
+}
+
 static void DecodeFile(FILE *fp)
 {
-	DecodeNodeBlock(fp);
-	DecodeAreaBlock(fp);
+	char header[8];
+
+	while (ReadBytes(header, 8, fp) != 0)
+	{
+		if (!strncmp(header, "nodes", 8))
+			DecodeNodes(fp);
+		else if (!strncmp(header, "areas", 8))
+			DecodeAreas(fp);
+		else if (!strncmp(header, "rmodel", 8))
+			DecodeRenderModels(fp);
+		else
+			Error("Uknown header \"%s\"\n", header);
+	}
 }
 
 static FILE *OpenFile(const char *filename)
@@ -224,7 +269,7 @@ static void ProcessCommandLine(int argc, char *argv[])
 	if(argc == 1)
 	{
 		PrintUsage();
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 
 	for(i = 1; argv[i][0] == '-'; i++)
@@ -232,10 +277,9 @@ static void ProcessCommandLine(int argc, char *argv[])
 		Error("Unknown option \"%s\"\n", argv[i]);
 	}
 	
-	{
-		FILE *fp = OpenFile(argv[i]);
-		DecodeFile(fp);
-	}
+	FILE *fp = OpenFile(argv[i]);
+
+	DecodeFile(fp);
 }
 
 
