@@ -241,16 +241,11 @@ static void EmitAreaRenderModel(area_t *a, FILE *fp)
 	EmitHeader("rmodel", fp);
 	EmitString(fp, "area%04i", a->areanumber);
 
-	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
-	{
-		numvertices += lf->polygon->numvertices;
-		numindicies += (lf->polygon->numvertices - 2) * 3;
-	}
-
-	EmitInt(numvertices, fp);
-	EmitInt(numindicies, fp);
-
 	// emit the vertex block
+	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
+		numvertices += lf->polygon->numvertices;
+	EmitInt(numvertices, fp);
+
 	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
 	{
 		polygon_t *p = lf->polygon;
@@ -264,6 +259,10 @@ static void EmitAreaRenderModel(area_t *a, FILE *fp)
 	}
 
 	// emit the index block
+	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
+		numindicies += (lf->polygon->numvertices - 2) * 3;
+	EmitInt(numindicies, fp);
+
 	int vertex = 0;
 	for (leafface_t *lf = a->leaffaces; lf; lf = lf->areanext)
 	{

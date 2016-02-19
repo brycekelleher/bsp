@@ -162,9 +162,6 @@ static void DecodeRenderModels(FILE *fp)
 	int numvertices = ReadInt(fp);
 	printf("numvertices %i\n", numvertices);
 
-	int numindicies = ReadInt(fp);
-	printf("numindicies %i\n", numindicies);
-
 	for (int i = 0; i < numvertices; i++)
 	{
 		float x, y, z;
@@ -174,6 +171,9 @@ static void DecodeRenderModels(FILE *fp)
 
 		printf("vertex %i: %f %f %f\n", i, x, y, z);
 	}
+
+	int numindicies = ReadInt(fp);
+	printf("numindicies %i\n", numindicies);
 
 	for (int i = 0; i < numindicies / 3; i++)
 	{
@@ -201,7 +201,7 @@ static void DecodeFile(FILE *fp)
 		else if (!strncmp(header, "rmodel", 8))
 			DecodeRenderModels(fp);
 		else
-			Error("Uknown header \"%s\"\n", header);
+			Error("Unknown header \"%s\"\n", header);
 	}
 }
 
