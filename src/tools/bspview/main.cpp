@@ -69,7 +69,7 @@ void Mem_FreeStack()
 	memstack.allocated = 0;
 }
 
-// ==============================================
+// ________________________________________________________________________________ 
 // model loading
 
 int ReadInt(FILE *fp)
@@ -176,13 +176,11 @@ static void LoadNodes(FILE *fp)
 		childnum[0] = ReadInt(fp);
 		childnum[1] = ReadInt(fp);
 
-		// fixme: move into another function
 		n->plane[0] = ReadFloat(fp);
 		n->plane[1] = ReadFloat(fp);
 		n->plane[2] = ReadFloat(fp);
 		n->plane[3] = ReadFloat(fp);
 
-		// fixme: move into another function
 		n->box.min[0] = ReadFloat(fp);
 		n->box.min[1] = ReadFloat(fp);
 		n->box.min[2] = ReadFloat(fp);
@@ -190,14 +188,6 @@ static void LoadNodes(FILE *fp)
 		n->box.max[1] = ReadFloat(fp);
 		n->box.max[2] = ReadFloat(fp);
 
-#if 0
-		// fixme: a -1 areanum gives a bad pointer
-		int areanum = ReadInt(fp);
-		n->area = areas + areanum;
-
-		int empty = ReadInt(fp);
-		n->empty = (empty > 0);
-#endif
 		n->empty = false;
 
 		// setup the child pointers
@@ -577,10 +567,17 @@ static void CopySurface(drawbuffer_t *b, surf_t *s)
 {
 	int base;
 
+	// allocate the buffer on first call
 	if (!b->vertices)
 		b->vertices = (drawvertex_t*)malloc(1024 * 1024 * 2);
 	if (!b->indicies)
 		b->indicies = (int*)malloc(1024 * 1024 * 4);
+	
+	// check for overflow of the buffers
+	if ((b->numvertices + s->numvertices) * sizeof(drawvertex_t) > (1024 * 1024 * 2))
+		Error("Out of vertex space\n");
+	if ((b->numindicies + s->numindicies) * sizeof(int) > (1024 * 1024 * 4))
+		Error("Out of index space\n");
 
 	base = b->numvertices;
 	for (int i = 0; i < s->numvertices; i++)
@@ -619,7 +616,7 @@ static void CalculateNormalsAsColors(drawbuffer_t *b)
 
 static void CalculateLighting(drawbuffer_t *b)
 {
-	for (int i = 0; i < b->numvertices; i += 3)
+	for (int i = 0; i < b->numvertices; i++)
 	{
 		vec3 v		= Vec3FromFloat(rs.viewvectors[0]);
 		vec3 n		= Vec3FromFloat(b->vertices[i].normal);
@@ -632,13 +629,10 @@ static void CalculateLighting(drawbuffer_t *b)
 		// scale the color by the 'color'
 		ndotl		= 0.75f * ndotl;
 
-		for (int j = 0; j < 3; j++)
-		{
-			b->vertices[i + j].color[0] = ndotl;
-			b->vertices[i + j].color[1] = ndotl;
-			b->vertices[i + j].color[2] = ndotl;
-			b->vertices[i + j].color[3] = 1.0f;
-		}
+		b->vertices[i].color[0] = ndotl;
+		b->vertices[i].color[1] = ndotl;
+		b->vertices[i].color[2] = ndotl;
+		b->vertices[i].color[3] = 1.0f;
 	}
 }
 
@@ -648,8 +642,7 @@ static void DrawBuffer(drawbuffer_t *b)
 	glNormalPointer(GL_FLOAT, sizeof(drawvertex_t), b->vertices->normal);
 	glColorPointer(4, GL_FLOAT, sizeof(drawvertex_t), b->vertices->color);
 
-	//glDrawArrays(GL_TRIANGLES, 0, b->numvertices);
-	glDrawElements(GL_TRIANGLES, b->numindicies / 3, GL_UNSIGNED_INT, (void*)b->indicies);
+	glDrawElements(GL_TRIANGLES, b->numindicies, GL_UNSIGNED_INT, (void*)b->indicies);
 }
 
 static void DrawWireframe(drawbuffer_t *b)
@@ -867,261 +860,7 @@ static void SetupMatrices()
 	MatrixMultiply(rs.clip, rs.projection, rs.view);
 }
 
-static void SetupFrustrum()
-{
-}
-
-// ______________________________________________________________________
-// portal visibility code
-
-typedef struct portalplanes_s
-{
-	int	numplanes;
-	plane_t	planes[32];
-
-} portalplanes_t;
-
-static plane_t portalplanes[32];
-
-#if 1
-static vec3 TransformPortalVertex(float m[4][4], vec3 in)
-{
-	vec3 out;
-
-	// transform to clip
-	out[0] = in[0] * m[0][0] + in[1] * m[0][1] + in[2] * m[0][2] + m[0][3];
-	out[1] = in[0] * m[1][0] + in[1] * m[1][1] + in[2] * m[1][2] + m[1][3];
-	out[2] = in[0] * m[2][0] + in[1] * m[2][1] + in[2] * m[2][2] + m[2][3];
-	float w = in[0] * m[3][0] + in[1] * m[3][1] + in[2] * m[3][2] + m[3][3];
-
-	// transform to NDC
-	return vec3(out[0] / w, out[1] / w, (out[2] / w));
-}
-#endif
-
-#if 0
-static vec3 TransformPortalVertex(float m[4][4], vec3 in)
-{
-	float eye[4], clip[4];
-
-	// transform to eye
-	for (int i = 0; i < 4; i++)
-		eye[i] =
-			(rs.view[i][0] * in[0]) +
-			(rs.view[i][1] * in[1]) +
-			(rs.view[i][2] * in[2]) +
-			(rs.view[i][3] * 1.0f);
-
-	// transform to clip
-	for (int i = 0; i < 4; i++)
-		clip[i] =
-			(rs.projection[i][0] * eye[0]) +
-			(rs.projection[i][1] * eye[1]) +
-			(rs.projection[i][2] * eye[2]) +
-			(rs.projection[i][3] * eye[3]);
-
-	// transform to NDC
-	return vec3(clip[0] / clip[3], clip[1] / clip[3], (clip[2] / clip[3]));
-}
-#endif
-
-static void SetupPortalPlanes(plane_t *planes)
-{
-	float cx = cosf(rs.fovx);
-	float sx = sinf(rs.fovx);
-	float cy = cosf(rs.fovy);
-	float sy = sinf(rs.fovy);
-
-	vec3 forward	= vec3(rs.viewvectors[0][0], rs.viewvectors[0][1], rs.viewvectors[0][2]);
-	vec3 up		= vec3(rs.viewvectors[1][0], rs.viewvectors[1][1], rs.viewvectors[1][2]);
-	vec3 side	= vec3(rs.viewvectors[2][0], rs.viewvectors[2][1], rs.viewvectors[2][2]);
-	vec3 pos	= vec3(rs.pos[0], rs.pos[1], rs.pos[2]);
-
-	// setup the planes
-	vec3 l = (cx * forward) + (sx * side);
-	vec3 r = (cx * forward) - (sx * side);
-	vec3 b = (cy * forward) + (sy * up);
-	vec3 t = (cy * forward) - (sy * up);
-
-	planes[0] = plane_t(forward, -Dot(forward, pos));
-	planes[1] = plane_t(l, -Dot(l, pos));
-	planes[2] = plane_t(r, -Dot(r, pos));
-	planes[3] = plane_t(b, -Dot(b, pos));
-	planes[4] = plane_t(t, -Dot(t, pos));
-}
-
-static int PointOnPlaneSide(vec3 p, plane_t plane, float epsilon)
-{
-	return plane.PointOnPlaneSide(p, epsilon);
-}
-
-// Classify where a polygon is with respect to a plane
-int PortalOnPlaneSide(portal_t *p, plane_t plane, float epsilon)
-{
-	bool	front, back;
-	int	i;
-
-	front = 0;
-	back = 0;
-
-	for (i = 0; i < p->numvertices; i++)
-	{
-		int side = PointOnPlaneSide(p->vertices[i], plane, epsilon);
-		
-		if (side == PLANE_SIDE_BACK)
-		{
-			if (front)
-				return PLANE_SIDE_CROSS;
-			back = 1;
-			continue;
-		}
-
-		if (side == PLANE_SIDE_FRONT)
-		{
-			if (back)
-				return PLANE_SIDE_CROSS;
-			front = 1;
-			continue;
-		}
-	}
-
-	if (back)
-		return PLANE_SIDE_BACK;
-	if (front)
-		return PLANE_SIDE_FRONT;
-	
-	return PLANE_SIDE_ON;
-}
-
-
-#if 0
-// test each portal vertex against each plane
-// if a single vertex is inside the view volume then the portal intersects
-// must pass all plane tests
-static bool TestPortalAgainstView(plane_t *planes, int numplanes, portal_t *p)
-{
-	int i, j;
-
-	for (i = 0; i < p->numvertices; i++)
-	{
-		vec3 v = p->vertices[i];
-		for (j = 0; j < numplanes; j++)
-			if (planes[j].PointOnPlaneSide(v, 0.2f) != PLANE_SIDE_FRONT)
-				break;
-
-		if (j == numplanes)
-			return true;
-	}
-
-	return false;
-}
-#endif
-
-// test each portal vertex against each plane
-// if a single vertex is inside the view volume then the portal intersects
-// must pass all plane tests
-static bool TestPortalAgainstView(plane_t *planes, int numplanes, portal_t *p)
-{
-	int i, j;
-
-	for (j = 0; j < numplanes; j++)
-	{
-		int side = PortalOnPlaneSide(p, planes[j], 0.2f);
-		if (side == PLANE_SIDE_BACK)
-			break;
-	}
-
-	return (j == numplanes);
-}
-
-static bspnode_t *WalkWithPoint(bspnode_t *n, vec3 p)
-{
-	// if this is a leaf then return it
-	if(!n->children[0] && !n->children[1])
-		return n;
-	
-	int side = n->plane.PointOnPlaneSide(p, 0.2f);
-	
-	if (side == PLANE_SIDE_FRONT || side == PLANE_SIDE_ON)
-		return WalkWithPoint(n->children[0], p);
-	else
-		return WalkWithPoint(n->children[1], p);
-}
-
-static bspnode_t *QueryViewNode(vec3 p)
-{
-	// works on the assumption that node 0 is the root
-	return WalkWithPoint(nodes, p);
-}
-
-static void MarkAllAreasVisible()
-{
-	visibleareas = NULL;
-
-	// move all the areas onto the visible list
-	for (area_t *a = arealist; a; a = a->next)
-	{
-		a->visiblenext = visibleareas;
-		visibleareas = a;
-	}
-}
-
-static int areavisited;
-
-// the polarity of the test is setup to be the same as fragments.
-// fragments are only drawn if they PASS the depth stencil and alpha
-static void FindVisibleAreasRecursive(area_t *a)
-{
-	//printf("area %p is visible\n", a);
-	// mark it as visited
-	a->areavisited = areavisited;
-
-	// link it into the list
-	a->visiblenext = visibleareas;
-	visibleareas = a;
-
-	for (portal_t *p = a->portals; p; p = p->next)
-	{
-		// don't flow into area we've already been into
-		if (p->dstleaf->area->areavisited == a->areavisited)
-			continue;
-
-		// don't process portals which fail the cull test
-		if (!TestPortalAgainstView(&portalplanes[0], 5, p))
-			continue;
-
-		// flow through into the area on the other side of this portal
-		FindVisibleAreasRecursive(p->dstleaf->area);
-	}
-}
-
-static void FindVisibleAreas()
-{
-	//printf("finding visible areas\n");
-
-	areavisited++;
-	visibleareas = NULL;
-
-	// find the node the view is currently located in
-	vec3 pos = vec3(rs.pos[0], rs.pos[1], rs.pos[2]);
-	bspnode_t *n = QueryViewNode(pos);
-
-	// if the view is in solid mark all areas visible
-	if (!n->empty || !rs.vis)
-	{
-		MarkAllAreasVisible();
-		return;
-	}
-
-	area_t *a = n->area;
-
-	// setup the portal planes
-	SetupPortalPlanes(&portalplanes[0]);
-
-	// walk the portal graph
-	FindVisibleAreasRecursive(a);
-}
-
+// ________________________________________________________________________________ 
 // top level drawing stuff
 
 static void DrawAxis()
@@ -1141,7 +880,7 @@ static void DrawAxis()
 	glEnd();
 }
 
-static void DrawVector(float *origin, float *dir)
+static void DrawVector(float origin[3], float dir[3])
 {
 	float s = 2.0f;
 
@@ -1238,6 +977,7 @@ static void PresentSurfaces(drawbuffer_t *b)
 {
 	// flush the drawbuffer
 	b->numvertices = 0;
+	b->numindicies = 0;
 
 	// build the drawbuffer from visible areas
 	for (surf_t *s = surfaces; s; s = s->next)
@@ -1252,8 +992,6 @@ static void PresentSurfaces(drawbuffer_t *b)
 
 static void DrawWorld()
 {
-	PresentSurfaces(&drawbuffer);
-
 	if (rs.rendermode == 0)
 		DrawLit(&drawbuffer);
 	else if (rs.rendermode == 1)
@@ -1291,7 +1029,7 @@ static void DrawFrame()
 
 	SetupMatrices();
 
-	FindVisibleAreas();
+	PresentSurfaces(&drawbuffer);
 
 	Draw();
 
