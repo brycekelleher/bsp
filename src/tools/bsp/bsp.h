@@ -35,6 +35,19 @@ typedef struct leafface_s
 
 } leafface_t;
 
+// this is the main sequences-as-standard-interfaces element
+typedef struct areatri_s
+{
+	struct areatri_s	*next;
+	vec3			vertices[3];
+} areatri_t;
+
+typedef struct trilist_s
+{
+	areatri_t	*head;
+	areatri_t	*tail;
+} trilist_t;
+
 
 
 
@@ -86,6 +99,7 @@ typedef struct area_s
 	// area render surfaces
 	struct trisurf_s	*trisurf;
 	struct leafface_s	*leaffaces;
+	struct trilist_s	*trilist;
 
 	// output number
 	int			areanumber;
