@@ -218,4 +218,12 @@ void BuildAreas(bsptree_t *tree);
 // output functions
 void WriteBinary(bsptree_t *tree);
 
+// mesh
+void BeginMesh();
+void EndMesh();
+void InsertTri(vec3 v0, vec3 v1, vec3 v2);
+int NumVertices();
+int NumIndicies();
+vec3 GetVertex(int i);
+int GetIndex(int i);
 

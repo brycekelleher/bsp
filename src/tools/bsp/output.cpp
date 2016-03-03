@@ -313,14 +313,44 @@ static void EmitAreaRenderModelWithTriList(area_t *a, FILE *fp)
 		EmitInt(i, fp);
 }
 
+static void EmitAreaRenderModelWithTriList2(area_t *a, FILE *fp)
+{
+	EmitHeader("rmodel", fp);
+	EmitString(fp, "area%04i", a->areanumber);
+
+	BeginMesh();
+	for (areatri_t *t = a->trilist->head; t; t = t->next)
+		InsertTri(t->vertices[0], t->vertices[1], t->vertices[2]);
+	EndMesh();
+
+	// emit the vertex block
+	int numvertices = NumVertices();
+	EmitInt(numvertices, fp);
+	for (int i = 0; i < numvertices; i++)
+	{
+		vec3 v = GetVertex(i);
+		EmitFloat(v[0], fp);
+		EmitFloat(v[1], fp);
+		EmitFloat(v[2], fp);
+	}
+
+	// emit the index block
+	int numindicies = NumIndicies();
+	EmitInt(numindicies, fp);
+	for (int i = 0; i < numindicies; i++)
+		EmitInt(GetIndex(i), fp);
+}
+
 static void EmitAreaRenderModels(bsptree_t *tree, FILE *fp)
 {
 #if 0
 	for (area_t *a = tree->areas; a; a = a->next)
 		EmitAreaRenderModel(a, fp);
-#endif
 	for (area_t *a = tree->areas; a; a = a->next)
 		EmitAreaRenderModelWithTriList(a, fp);
+#endif
+	for (area_t *a = tree->areas; a; a = a->next)
+		EmitAreaRenderModelWithTriList2(a, fp);
 }
 
 void WriteBinary(bsptree_t *tree)
