@@ -40,6 +40,7 @@ typedef struct areatri_s
 {
 	struct areatri_s	*next;
 	vec3			vertices[3];
+	vec3			normals[3];
 } areatri_t;
 
 typedef struct trilist_s
@@ -219,11 +220,18 @@ void BuildAreas(bsptree_t *tree);
 void WriteBinary(bsptree_t *tree);
 
 // mesh
+typedef struct meshvertex_s
+{
+	vec3	xyz;
+	vec3	normal;
+
+} meshvertex_t;
+
 void BeginMesh();
 void EndMesh();
-void InsertTri(vec3 v0, vec3 v1, vec3 v2);
+void InsertTri(meshvertex_t v0, meshvertex_t v1, meshvertex_t v2);
 int NumVertices();
 int NumIndicies();
-vec3 GetVertex(int i);
+meshvertex_t GetVertex(int i);
 int GetIndex(int i);
 

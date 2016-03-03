@@ -169,7 +169,12 @@ static void DecodeRenderModels(FILE *fp)
 		y = ReadFloat(fp);
 		z = ReadFloat(fp);
 
-		printf("vertex %i: %f %f %f\n", i, x, y, z);
+		float nx, ny, nz;
+		nx = ReadFloat(fp);
+		ny = ReadFloat(fp);
+		nz = ReadFloat(fp);
+
+		printf("vertex %i: %f %f %f (%f %f %f)\n", i, x, y, z, nx, ny, nz);
 	}
 
 	int numindicies = ReadInt(fp);

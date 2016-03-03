@@ -59,6 +59,28 @@ int Length(trilist_t *l)
 	return count;
 }
 
+void CheckTriArea(areatri_t *t)
+{
+	vec3 area = vec3(0, 0, 0);
+
+	// for each edge of the triangle
+	for (int i = 0; i < 3; i++)
+	{
+		int i0 = (i + 0) % 3;
+		int i1 = (i + 1) % 3;
+				
+		vec3 v0 = t->vertices[i0];
+		vec3 v1 = t->vertices[i1];
+				
+		area[2] += (v0[0] * v1[1]) - (v1[0] * v0[1]);
+		area[0] += (v0[1] * v1[2]) - (v1[1] * v0[2]);
+		area[1] += (v0[2] * v1[0]) - (v1[2] * v0[0]);
+	}
+
+	if (area[0] == 0.0f && area[1] == 0.0f & area[2] == 0.0f)
+		Error("Zero area tri!\n");
+}
+
 // ==============================================
 // Surface code
 
@@ -410,7 +432,9 @@ static tjunc_vcl_t ClassifyVertexAgainstEdge(vec3 v, vec3 ev0, vec3 ev1)
 		cl = TJUNC_EDGE;
 
 	// vertex test eats the edge test
-	if ((dv0 < 0.00001f) || (dv1 < 0.000001f))
+	//printf("v: %f %f %f, ev0: %f %f %f, ev1: %f %f %f\n", v[0], v[1], v[2], ev0[0], ev0[1], ev0[2], ev1[0], ev1[1], ev1[2]);
+	//printf("dv0: %f, dv1: %f\n", dv0, dv1);
+	if ((dv0 < 0.1f) || (dv1 < 0.1f))
 		cl = TJUNC_VERTEX;
 
 	return cl;
@@ -435,12 +459,14 @@ static trilist_t *FixTriangleList(trilist_t *trilist, vec3 v)
 			n->vertices[0] = t->vertices[0];
 			n->vertices[1] = v;
 			n->vertices[2] = t->vertices[2];
+			CheckTriArea(n);
 			Append(result, n);
 
 			n = Copy(t);
 			n->vertices[0] = v;
 			n->vertices[1] = t->vertices[1];
 			n->vertices[2] = t->vertices[2];
+			CheckTriArea(n);
 			Append(result, n);
 		}
 		else if (cl1 == TJUNC_EDGE)
@@ -452,12 +478,14 @@ static trilist_t *FixTriangleList(trilist_t *trilist, vec3 v)
 			n->vertices[0] = t->vertices[0];
 			n->vertices[1] = t->vertices[1];
 			n->vertices[2] = v;
+			CheckTriArea(n);
 			Append(result, n);
 
 			n = Copy(t);
 			n->vertices[0] = t->vertices[0];
 			n->vertices[1] = v;
 			n->vertices[2] = t->vertices[2];
+			CheckTriArea(n);
 			Append(result, n);
 		}
 		else if (cl2 == TJUNC_EDGE)
@@ -469,12 +497,14 @@ static trilist_t *FixTriangleList(trilist_t *trilist, vec3 v)
 			n->vertices[0] = t->vertices[0];
 			n->vertices[1] = t->vertices[1];
 			n->vertices[2] = v;
+			CheckTriArea(n);
 			Append(result, n);
 
 			n = Copy(t);
 			n->vertices[0] = v;
 			n->vertices[1] = t->vertices[1];
 			n->vertices[2] = t->vertices[2];
+			CheckTriArea(n);
 			Append(result, n);
 		}
 		else
@@ -519,6 +549,131 @@ static trilist_t *FixTJunctions(trilist_t *trilist)
 }
 
 //________________________________________________________________________________
+// Trilist normals
+
+static float min3(float a, float b, float c)
+{
+	if (a < b && a < c)
+		return a;
+	else if (b < c)
+		return b;
+	else
+		return c;
+}
+
+static vec3 TriNormal(areatri_t *t)
+{
+	vec3 area = vec3(0, 0, 0);
+
+	//printf("v0 %f %f %f\n", t->vertices[0][0], t->vertices[1][0], t->vertices[2][0]);
+	//printf("v1 %f %f %f\n", t->vertices[0][1], t->vertices[1][1], t->vertices[2][1]);
+	//printf("v2 %f %f %f\n", t->vertices[0][2], t->vertices[1][2], t->vertices[2][2]);
+
+	// for each edge of the triangle
+	for (int i = 0; i < 3; i++)
+	{
+		int i0 = (i + 0) % 3;
+		int i1 = (i + 1) % 3;
+				
+		vec3 v0 = t->vertices[i0];
+		vec3 v1 = t->vertices[i1];
+				
+		area[2] += (v0[0] * v1[1]) - (v1[0] * v0[1]);
+		area[0] += (v0[1] * v1[2]) - (v1[1] * v0[2]);
+		area[1] += (v0[2] * v1[0]) - (v1[2] * v0[0]);
+	}
+		
+	//printf("area %f %f %f\n", area[0], area[1], area[2]);
+	if (Length(area) <= 0.00001f)
+		return vec3(0, 0, 0);
+	return Normalize(area);
+}
+
+static bool DistanceCheck(vec3 a, vec3 b, float tolerance = 0.00001f)
+{
+	return Length(a - b) <= tolerance;
+}
+
+static bool SearchNormalList(vec3 *list, int numitems, vec3 value)
+{
+	int i = 0;
+	for (; i < numitems; i++)
+		if (list[i] == value)
+			break;
+	return (i == numitems);
+}
+
+static vec3 CalculateVertexNormal(vec3 vertex, vec3 snormal, trilist_t *trilist)
+{
+	vec3 normallist[256];
+	int numnormals = 0;
+
+	// build the normal list
+	for (areatri_t *t = trilist->head; t; t = t->next)
+	{
+		vec3 n = TriNormal(t);
+
+		if (n[0] == 0 && n[1] == 0 && n[2] == 0)
+		{
+			Warning("zero area normal found\n");
+			continue;
+		}
+
+		// distance check
+		float l0 = Length(vertex - t->vertices[0]);
+		float l1 = Length(vertex - t->vertices[1]);
+		float l2 = Length(vertex - t->vertices[2]);
+		if (min3(l0, l1, l2) > 0.00001f)
+			continue;
+		
+		// planar check
+		if (Dot(snormal, n) < 0.9f)
+			continue;
+
+		// search for the normal in the normal list
+		int i = 0;
+		for (; i < numnormals; i++)
+			if (normallist[i] == n)
+				break;
+
+		if (i != numnormals)
+			continue;
+
+		// overflow check
+		if (i == 256)
+		{
+			Warning("No more normals");
+			continue;
+		}
+
+		normallist[numnormals++] = n;
+	}
+
+	// calculate the average normal
+	// fixme: += doesn't work
+	vec3 vertexnormal = vec3(0, 0, 0);
+	for (int i = 0; i < numnormals; i++)
+		vertexnormal = vertexnormal + normallist[i];
+	vertexnormal = Normalize(vertexnormal);
+
+	return vertexnormal;
+}
+
+static trilist_t *CalculateNormals(trilist_t *trilist)
+{
+	for (areatri_t *t = trilist->head; t; t = t->next)
+	{
+		vec3 snormal = TriNormal(t);
+		//printf("snormal %f %f %f\n", snormal[0], snormal[1], snormal[2]);
+		t->normals[0] = CalculateVertexNormal(t->vertices[0], snormal, trilist);
+		t->normals[1] = CalculateVertexNormal(t->vertices[1], snormal, trilist);
+		t->normals[2] = CalculateVertexNormal(t->vertices[2], snormal, trilist);
+	}
+
+	return trilist;
+}
+
+//________________________________________________________________________________
 
 void BuildAreaModels(bsptree_t *tree)
 {
@@ -529,10 +684,15 @@ void BuildAreaModels(bsptree_t *tree)
 	{
 		trilist_t *trilist = BuildAreaTriList(a);
 
+#if 1		
 		// fix the t-junctions
 		trilist_t *fixedlist = FixTJunctions(trilist);
 		FreeTriList(trilist);
 		trilist = fixedlist;
+#endif
+
+		// calculate per vertex normals
+		trilist = CalculateNormals(trilist);
 
 		a->trilist = trilist;
 	}

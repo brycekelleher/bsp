@@ -312,6 +312,9 @@ static void LoadRenderModel(FILE *fp)
 		s->vertices[i].xyz[0] = ReadFloat(fp);
 		s->vertices[i].xyz[1] = ReadFloat(fp);
 		s->vertices[i].xyz[2] = ReadFloat(fp);
+		s->vertices[i].normal[0] = ReadFloat(fp);
+		s->vertices[i].normal[1] = ReadFloat(fp);
+		s->vertices[i].normal[2] = ReadFloat(fp);
 	}
 
 	// read the index block
@@ -321,7 +324,7 @@ static void LoadRenderModel(FILE *fp)
 	for (int i = 0; i < s->numindicies; i++)
 		s->indicies[i] = ReadInt(fp);
 
-	CalculateNormals(s);
+	//CalculateNormals(s);
 }
 
 static void LoadData(FILE *fp)

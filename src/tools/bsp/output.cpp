@@ -320,7 +320,18 @@ static void EmitAreaRenderModelWithTriList2(area_t *a, FILE *fp)
 
 	BeginMesh();
 	for (areatri_t *t = a->trilist->head; t; t = t->next)
-		InsertTri(t->vertices[0], t->vertices[1], t->vertices[2]);
+	{
+		// fixme: function to create these
+		meshvertex_t v0, v1, v2;
+		v0.xyz = t->vertices[0];
+		v0.normal = t->normals[0];
+		v1.xyz = t->vertices[1];
+		v1.normal = t->normals[1];
+		v2.xyz = t->vertices[2];
+		v2.normal = t->normals[2];
+
+		InsertTri(v0, v1, v2);
+	}
 	EndMesh();
 
 	// emit the vertex block
@@ -328,10 +339,13 @@ static void EmitAreaRenderModelWithTriList2(area_t *a, FILE *fp)
 	EmitInt(numvertices, fp);
 	for (int i = 0; i < numvertices; i++)
 	{
-		vec3 v = GetVertex(i);
-		EmitFloat(v[0], fp);
-		EmitFloat(v[1], fp);
-		EmitFloat(v[2], fp);
+		meshvertex_t v = GetVertex(i);
+		EmitFloat(v.xyz[0], fp);
+		EmitFloat(v.xyz[1], fp);
+		EmitFloat(v.xyz[2], fp);
+		EmitFloat(v.normal[0], fp);
+		EmitFloat(v.normal[1], fp);
+		EmitFloat(v.normal[2], fp);
 	}
 
 	// emit the index block
