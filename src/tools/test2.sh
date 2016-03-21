@@ -3,6 +3,7 @@
 BSP=./bsp/bsp
 BSPDUMP=./bspdump/bspdump
 SRCFILE=$1
+BASENAME=${SRCFILE%.*}
 
 rm -rf out.bsp out.bsp.dump out.bsp.hexdump
 $BSP $SRCFILE
