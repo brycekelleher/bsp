@@ -224,6 +224,36 @@ static bspnode_t *MallocBSPNode(bsptree_t *tree, bspnode_t *parent)
 	return n;
 }
 
+// BSPTree -> Integer
+// consumes a bsp tree, walks the tree and returns the maximum depth
+static int TreeMinDepth(bspnode_t *n)
+{
+#define MIN(a, b) (a < b ? a : b)
+
+	if (!n->children[0] && !n->children[1])
+		return 0;
+
+	int fdepth = TreeMinDepth(n->children[0]);
+	int bdepth = TreeMinDepth(n->children[1]);
+
+	return MIN(fdepth + 1, bdepth + 1);
+}
+
+// BSPTree -> Integer
+// consumes a bsp tree, walks the tree and returns the maximum depth
+static int TreeMaxDepth(bspnode_t *n)
+{
+#define MAX(a, b) (a > b ? a : b)
+
+	if (!n->children[0] && !n->children[1])
+		return 0;
+
+	int fdepth = TreeMaxDepth(n->children[0]);
+	int bdepth = TreeMaxDepth(n->children[1]);
+
+	return MAX(fdepth + 1, bdepth + 1);
+}
+
 // ==============================================
 // Tree building code
 
@@ -320,14 +350,10 @@ static void PartitionFaceList(plane_t plane, bspface_t *list, bspface_t **sides)
 // contained within the node. Then the node is split with a plane
 // Leaf nodes won't have a valid split plane
 // Leaf nodes wont have valid child pointers
-static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bspface_t *list, int depth)
+static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bspface_t *list)
 {
 	plane_t		plane;
 	bspface_t	*sides[2];
-	
-	// update the depth
-	if (depth > tree->depth)
-		tree->depth = depth;
 	
 	// guard condition for an empty list
 	if (!list)
@@ -358,8 +384,8 @@ static void BuildTreeRecursive(bsptree_t *tree, bspnode_t *node, bspface_t *list
 	node->children[1]->box = ClipBoxWithPlane(node->box, -node->plane);
 	
 	// recurse down the front and back sides
-	BuildTreeRecursive(tree, node->children[0], sides[0], depth + 1);
-	BuildTreeRecursive(tree, node->children[1], sides[1], depth + 1);
+	BuildTreeRecursive(tree, node->children[0], sides[0]);
+	BuildTreeRecursive(tree, node->children[1], sides[1]);
 }
 
 bsptree_t *BuildTree()
@@ -374,11 +400,14 @@ bsptree_t *BuildTree()
 	
 	tree = MakeEmptyTree(flist);
 	
-	BuildTreeRecursive(tree, tree->root, flist, 1);
+	BuildTreeRecursive(tree, tree->root, flist);
+	tree->mindepth = TreeMinDepth(tree->root);
+	tree->maxdepth = TreeMaxDepth(tree->root);
 
 	Message("%i nodes\n", tree->numnodes);
 	Message("%i leaves\n", tree->numleafs);
-	Message("%i tree depth\n", tree->depth);
+	Message("%i tree min depth\n", tree->mindepth);
+	Message("%i tree max depth\n", tree->maxdepth);
 	
 	return tree;
 }

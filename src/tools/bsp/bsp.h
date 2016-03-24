@@ -150,7 +150,8 @@ typedef struct bsptree_s
 	bspnode_t	*nodes;
 	int		numnodes;
 	int		numleafs;
-	int		depth;
+	int		mindepth;
+	int		maxdepth;
 	
 	bspnode_t	*root;
 	bspnode_t	*leafs;
