@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include "glvis.h"
 
-// ==============================================
+// ________________________________________________________________________________ 
 // errors and warnings
 
 void Error(const char *error, ...)
@@ -291,14 +291,27 @@ static void *DrawThread(void *args)
 	return EXIT_SUCCESS;
 }
 
+static void SetupBuffer(int argc, char *argv[])
+{
+	// default size to 32 megs
+	int numbytes = 32 * 1024 * 1024;
+	for (int i = 1; i < argc && argv[i][0] == '-'; i++)
+	{
+		if (!strcmp(argv[i], "-b") || !strcmp(argv[i], "--buffer-size"))
+			numbytes = atoi(argv[i + 1]);
+	}
+
+	BufferInit(numbytes);
+
+	BufferFlush();
+}
+
 int main(int argc, char *argv[])
 {
 	gargc = argc;
 	gargv = argv;
 
-	BufferInit(32 * 1024 * 1024);
-
-	BufferFlush();
+	SetupBuffer(argc, argv);
 
 	pthread_t front, draw;
 	pthread_create(&front, NULL, ReadThread, NULL);
