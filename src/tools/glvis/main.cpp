@@ -83,20 +83,159 @@ static void ReadBinaryImageStream(FILE *fp)
 static int gargc;
 static char **gargv;
 
+static bool readkeepalive = true;
+
+// ________________________________________________________________________________ 
+// Net Read loop
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#if 0
+int MakeListenSocket()
+{
+	int listensocket = socket(AF_INET, SOCK_STREAM, 0);
+	//int ipv6_socket = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
+
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
+	//sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET; // or AF_INET6 (address family)
+	sin.sin_port = htons(1234);
+	sin.sin_addr.s_addr= INADDR_ANY;
+
+	if (bind(listensocket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		Error("Socket bind failed\n");
+
+	listen(listensocket, 1);
+	
+	return listensocket;
+}
+
+static void NetReadLoop()
+{
+	//while(1)
+	{
+		int listensocket = MakeListenSocket();
+
+		{
+			printf("listening for connection\n");
+			int readsocket = accept(listensocket, NULL, NULL);
+			printf("connected\n");
+			FILE *fp = fdopen(readsocket, "rb");
+			setbuf(fp, NULL);
+			if (!fp)
+				Error("Failed to create fp\n");
+
+			Read(fp);
+			fclose(fp);
+		}
+
+		//printf("closing listen socket\n");
+		//close(listensocket);
+
+	}
+}
+#endif
+
+static int NetMakeListenSocket()
+{
+	int listensocket = socket(AF_INET, SOCK_STREAM, 0);
+
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET; // or AF_INET6 (address family)
+	sin.sin_port = htons(1234);
+	sin.sin_addr.s_addr= INADDR_ANY;
+
+	if (bind(listensocket, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		Error("Socket bind failed\n");
+
+	if (listen(listensocket, 1) < 0)
+		Error("Socket listen call failed\n");
+	
+	return listensocket;
+}
+
+// Non-blocking accept call
+static int NetAccept(int listensocket)
+{
+	fd_set rfds;
+	FD_ZERO(&rfds);
+	FD_SET(listensocket, &rfds);
+	
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = 25 * 1000; // 25 milliseconds between read checks
+
+	//printf("calling select\n");
+	int selret = select(listensocket + 1, &rfds, NULL, NULL, &tv);
+	if (selret == -1)
+	{
+		Error("error in select\n");
+		return 0;
+	}
+	else if (selret == 0)
+		return 0;
+	else
+		return accept(listensocket, NULL, NULL);
+}
+
+static FILE *NetFilePointer(int fd)
+{
+	if (!fd)
+		return NULL;
+
+	FILE *fp = fdopen(fd, "rb");
+	if (!fp)
+		Error("Failed to create fp\n");
+
+	setbuf(fp, NULL);
+
+	return fp;
+}
+
+static void NetReadLoop()
+{
+	int listensocket = NetMakeListenSocket();
+
+	do
+	{
+		int readsocket = 0;
+		while (!readsocket)
+			readsocket =  NetAccept(listensocket);
+
+		FILE *fp = NetFilePointer(readsocket);
+
+		Read(fp);
+
+		fclose(fp);
+	}
+	while(readkeepalive);
+}
+
+// ________________________________________________________________________________ 
+// Fifo read loop
+
 static void FifoReadLoop()
 {
-	while(1)
+	do
 	{
 		static const char *fifoname = "/tmp/f";
 		FILE *fp = fopen(fifoname, "rb");
 		if(!fp)
-			Error("couldn't open fifo \"%s\"", fifoname);
+			Error("couldn't open fifo \"%s\"\n", fifoname);
 
 		Read(fp);
 	}
+	while(readkeepalive);
 }
 
-static void *FrontEndThread(void *args)
+// ________________________________________________________________________________ 
+// Read and Draw threads
+
+static void *ReadThread(void *args)
 {
 	int argc = gargc;
 	char **argv = gargv;
@@ -104,9 +243,16 @@ static void *FrontEndThread(void *args)
 	int i = 1;
 	for (; i < argc && argv[i][0] == '-'; i++)
 	{
-		if (!strcmp(argv[i], "--fifo"))
+		if (!strcmp(argv[i], "-k"))
+			readkeepalive = true;
+		else if (!strcmp(argv[i], "--fifo"))
 		{
 			FifoReadLoop();
+			return EXIT_SUCCESS;
+		}
+		else if (!strcmp(argv[1], "--net"))
+		{
+			NetReadLoop();	
 			return EXIT_SUCCESS;
 		}
 		else if (!strcmp(argv[i], "--help"))
@@ -155,7 +301,7 @@ int main(int argc, char *argv[])
 	BufferFlush();
 
 	pthread_t front, draw;
-	pthread_create(&front, NULL, FrontEndThread, NULL);
+	pthread_create(&front, NULL, ReadThread, NULL);
 	pthread_create(&draw, NULL, DrawThread, NULL);
 
 	pthread_join(front, NULL);
