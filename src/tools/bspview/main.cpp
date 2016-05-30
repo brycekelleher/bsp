@@ -537,6 +537,8 @@ typedef struct rs_s
 	bool		vis;
 	bool		showportals;
 	int		rendermode;
+	bool		shownodes;
+	int		filterlevel;
 
 } rs_t;
 
@@ -883,6 +885,34 @@ static void DrawAxis()
 	glEnd();
 }
 
+static void DrawBounds(float min[3], float max[3])
+{
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(min[0], min[1], min[2]);
+	glVertex3f(max[0], min[1], min[2]);
+	glVertex3f(max[0], max[1], min[2]);
+	glVertex3f(min[0], max[1], min[2]);
+	glEnd();
+
+	glBegin(GL_LINE_LOOP);
+	glVertex3f(min[0], min[1], max[2]);
+	glVertex3f(max[0], min[1], max[2]);
+	glVertex3f(max[0], max[1], max[2]);
+	glVertex3f(min[0], max[1], max[2]);
+	glEnd();
+
+	glBegin(GL_LINES);
+	glVertex3f(min[0], min[1], min[2]);
+	glVertex3f(min[0], min[1], max[2]);
+	glVertex3f(max[0], min[1], min[2]);
+	glVertex3f(max[0], min[1], max[2]);
+	glVertex3f(max[0], max[1], min[2]);
+	glVertex3f(max[0], max[1], max[2]);
+	glVertex3f(min[0], max[1], min[2]);
+	glVertex3f(min[0], max[1], max[2]);
+	glEnd();
+}
+
 static void DrawVector(float origin[3], float dir[3])
 {
 	float s = 2.0f;
@@ -1003,6 +1033,32 @@ static void DrawWorld()
 		DrawWireframe(&drawbuffer);
 }
 
+static void DrawNodesRecursive(bspnode_t *n, int level)
+{
+	if (!n)
+		return;
+
+	// filter levels
+	if (rs.filterlevel != -1 && level > rs.filterlevel)
+		return;
+
+	DrawBounds(n->box.min, n->box.max);
+
+	DrawNodesRecursive(n->children[0], level + 1);
+	DrawNodesRecursive(n->children[1], level + 1);
+}
+
+static void DrawNodes()
+{
+	if (!rs.shownodes)
+		return;
+
+	glColor3f(1, 0, 0);
+	glDisable(GL_DEPTH_TEST);
+	DrawNodesRecursive(nodes, 0);
+	glEnable(GL_DEPTH_TEST);
+}
+
 static void Draw()
 {
 	DrawAxis();
@@ -1010,6 +1066,8 @@ static void Draw()
 	DrawWorld();
 
 	DrawPortals();
+
+	DrawNodes();
 }
 
 static void BeginFrame()
@@ -1082,6 +1140,24 @@ static void KeyboardDownFunc(unsigned char key, int x, int y)
 		rs.showportals = !rs.showportals;
 		printf("showportals: %i\n", (rs.showportals ? 1 : 0));
 	}
+
+	if (input.keys['n'])
+	{
+		rs.shownodes = !rs.shownodes;
+		printf("shownodes: %i\n", (rs.shownodes ? 1 : 0));
+	}
+
+	if (input.keys['['])
+	{
+		rs.filterlevel = Max(-1, rs.filterlevel - 1);
+		printf("filterlevel: %i\n", rs.filterlevel);
+	}
+
+	if (input.keys[']'])
+	{
+		rs.filterlevel += 1;
+		printf("filterlevel: %i\n", rs.filterlevel);
+	}
 }
 
 static void KeyboardUpFunc(unsigned char key, int x, int y)
@@ -1132,6 +1208,7 @@ int GLUTMain(int argc, char *argv[])
 	glutInit(&argc, argv);
 
 	SetupDefaultViewState();
+	rs.filterlevel = -1;
 	
 	glutInitWindowPosition(0, 0);
 	glutInitWindowSize(400, 400);
