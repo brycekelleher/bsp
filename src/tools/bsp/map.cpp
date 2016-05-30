@@ -41,6 +41,14 @@ static char *ReadToken(FILE *fp)
 	return buffer;
 }
 
+static void ExpectToken(char *expect, FILE *fp)
+{
+	char *token = ReadToken(fp);
+
+	if (token && strcmp(expect, token))
+		Error("Expected token \"%s\" read \"%s\"\n", expect, token);
+}
+
 static char* PolygonString(polygon_t *p)
 {
 	static char buffer[2048];
@@ -148,6 +156,8 @@ static polygon_t *ReadPolygon(FILE *fp)
 	polygon_t *p = NULL;
 	
 	polygonlinenum = linenum;
+
+	ExpectToken("{", fp);
 
 	while (1)
 	{
