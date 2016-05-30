@@ -31,6 +31,10 @@ static char *ReadToken(FILE *fp)
 
 	buffer[i] = '\0';
 
+	// unget the previous character that caused the break from the loop
+	if (c != EOF)
+		ungetc(c, fp);
+
 	if (i == 0)
 		return NULL;
 
@@ -252,7 +256,7 @@ void ReadMap(char *filename)
 
 	Message("Reading map \"%s\"\n", filename);
 	
-	fp = FileOpenTextRead(filename);
+	fp = FileOpenBinaryRead(filename);
 
 	ReadMapFile(fp);
 

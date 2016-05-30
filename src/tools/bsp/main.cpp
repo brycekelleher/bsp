@@ -3,7 +3,7 @@
 // at 128 = 1m, 0.02 = 0.15625mm
 extern const float CLIP_EPSILON		= 0.2f;
 extern const float AREA_EPSILON		= 0.1f;
-extern const float PLANAR_EPSILON	= 0.01f;
+extern const float PLANAR_EPSILON	= 0.2f;		// same as clip epsilon
 extern const float MAX_VERTEX_SIZE	= 4096.0f;
 
 const char	*outputfilename = "out.bsp";
