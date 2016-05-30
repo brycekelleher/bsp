@@ -5,6 +5,8 @@
 static mapdata_t	mapdatalocal;
 mapdata_t		*mapdata = &mapdatalocal;
 
+smodel_t *smodels = NULL;
+
 static mapface_t *MallocMapPolygon(polygon_t *p)
 {
 	mapface_t *face	= (mapface_t*)MallocZeroed(sizeof(*face));
@@ -167,8 +169,6 @@ static polygon_t *ReadPolygon(FILE *fp)
 		{
 			int numvertices = ReadInt(fp);
 			p = Polygon_Alloc(numvertices);
-
-			ReadInt(fp);
 		}
 		else if (!strcmp(token, "vertex"))
 		{
@@ -176,10 +176,6 @@ static polygon_t *ReadPolygon(FILE *fp)
 				p = Polygon_Alloc(32);
 
 			ReadPolygonVertex(fp, p);
-		}
-		else if (!strcmp(token, "{"))
-		{
-			continue;
 		}
 		else if (!strcmp(token, "}"))
 		{
@@ -236,6 +232,55 @@ static void ReadAreaHint(FILE *fp)
 	DebugWriteWireFillPolygon(debugfp, face->polygon);
 }
 
+static void ReadStaticModel(FILE *fp)
+{
+	smodel_t *m = (smodel_t*)MallocZeroed(sizeof(smodel_t));
+	
+	ExpectToken("{", fp);
+
+	while (1)
+	{
+		char *token = ReadToken(fp);
+
+		if (!strcmp(token, "numvertices"))
+		{
+			m->numvertices = ReadInt(fp);
+			m->vertices = (vec3*)MallocZeroed(m->numvertices * sizeof(vec3));
+		}
+		else if (!strcmp(token, "vertex"))
+		{
+			int index = ReadInt(fp);
+			m->vertices[index].x = ReadFloat(fp);
+			m->vertices[index].y = ReadFloat(fp);
+			m->vertices[index].z = ReadFloat(fp);
+			m->numvertices++;
+		}
+		else if (!strcmp(token, "numtris"))
+		{
+			m->numindicies = 3 * ReadInt(fp);
+			m->indicies = (int*)MallocZeroed(m->numindicies * sizeof(int));
+		}
+		else if (!strcmp(token, "tri"))
+		{
+			int index = ReadInt(fp);
+			m->indicies[3 * index + 0] = ReadInt(fp);
+			m->indicies[3 * index + 1] = ReadInt(fp);
+			m->indicies[3 * index + 2] = ReadInt(fp);
+		}
+		else if (!strcmp(token, "}"))
+		{
+			// link it into the static list
+			m->next = smodels;
+			smodels = m;
+			return;
+		}
+		else
+		{
+			Error("(%i) Unknown token \"%s\" when reading static model\n", linenum, token);
+		}
+	}
+}
+
 static void ReadMapFile(FILE *fp)
 {
 	char *token;
@@ -249,6 +294,10 @@ static void ReadMapFile(FILE *fp)
 		else if (!strcmp(token, "areahint"))
 		{
 			ReadAreaHint(fp);
+		}
+		else if (!strcmp(token, "staticmodel"))
+		{
+			ReadStaticModel(fp);
 		}
 		else
 		{

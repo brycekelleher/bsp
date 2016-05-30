@@ -281,6 +281,37 @@ static void EmitAreaRenderModels(bsptree_t *tree, FILE *fp)
 		EmitAreaRenderModel(a, fp);
 }
 
+static void EmitStaticRenderModel(smodel_t *m, FILE *fp)
+{
+	static int count = 0;
+
+	EmitHeader("rmodel", fp);
+	EmitString(fp, "staticmodel%04i", count);
+	
+	// emit the vertex block
+	EmitInt(m->numvertices, fp);
+	for (int i = 0; i < m->numvertices; i++)
+	{
+		EmitFloat(m->vertices[i][0], fp);
+		EmitFloat(m->vertices[i][1], fp);
+		EmitFloat(m->vertices[i][2], fp);
+		EmitFloat(0.0f, fp);
+		EmitFloat(0.0f, fp);
+		EmitFloat(1.0f, fp);
+	}
+
+	// emit the index block
+	EmitInt(m->numindicies, fp);
+	for (int i = 0; i < m->numindicies; i++)
+		EmitInt(m->indicies[i], fp);
+}
+
+static void EmitStaticRenderModels(FILE *fp)
+{
+	for(smodel_t *m = smodels; m; m = m->next)
+		EmitStaticRenderModel(m, fp);
+}
+
 void WriteBinary(bsptree_t *tree)
 {
 	Message("Writing binary \"%s\"...\n", outputfilename);
@@ -294,5 +325,7 @@ void WriteBinary(bsptree_t *tree)
 	EmitPortalBlock(tree, fp);
 
 	EmitAreaRenderModels(tree, fp);
+
+	EmitStaticRenderModels(fp);
 }
 

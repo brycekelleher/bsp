@@ -168,6 +168,26 @@ typedef struct bsptree_s
 extern const char	*outputfilename;
 extern mapdata_t	*mapdata;
 
+// ________________________________________________________________________________ 
+// new static model stuff
+
+typedef struct smodel_s
+{
+	struct smodel_s *next;
+	int numvertices;
+	vec3 *vertices;
+
+	int numindicies;
+	int *indicies;
+
+} smodel_t;
+
+
+extern smodel_t		*smodels;
+
+// ________________________________________________________________________________ 
+
+
 // toolib imports
 void Error(const char *error, ...);
 void Warning(const char *warning, ...);
