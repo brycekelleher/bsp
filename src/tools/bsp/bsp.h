@@ -16,26 +16,10 @@ extern const float AREA_EPSILON;
 extern const float PLANAR_EPSILON;
 extern const float MAX_VERTEX_SIZE;
 
-typedef struct trisurf_s
-{
-	int	numvertices;
-	int	maxvertices;
-	vec3	*vertices;
-
-} trisurf_t;
-
-typedef struct leafface_s
-{
-	struct leafface_s	*areanext;
-	struct leafface_s	*nodenext;
-			
-	struct bspnode_s	*leaf;
-	struct area_s		*area;
-	polygon_t	*polygon;
-
-} leafface_t;
-
+// ________________________________________________________________________________ 
+// trilist
 // this is the main sequences-as-standard-interfaces element
+
 typedef struct areatri_s
 {
 	struct areatri_s	*next;
@@ -49,10 +33,37 @@ typedef struct trilist_s
 	areatri_t	*tail;
 } trilist_t;
 
+areatri_t *AllocAreaTri();
+areatri_t *Copy(areatri_t *t);
+trilist_t *CreateTriList();
+void FreeTriList(trilist_t *l);
+void Append(trilist_t *l, areatri_t *t);
+areatri_t *Head(trilist_t *l);
+int Length(trilist_t *l);
 
+trilist_t *FixTJunctions(trilist_t *trilist);
+trilist_t *CalculateNormals(trilist_t *trilist);
 
+// ________________________________________________________________________________ 
+// trimesh
 
+// mesh
+typedef struct meshvertex_s
+{
+	vec3	xyz;
+	vec3	normal;
 
+} meshvertex_t;
+
+void BeginMesh();
+void EndMesh();
+void InsertTri(meshvertex_t v0, meshvertex_t v1, meshvertex_t v2);
+int NumVertices();
+int NumIndicies();
+meshvertex_t GetVertex(int i);
+int GetIndex(int i);
+
+// ________________________________________________________________________________ 
 
 typedef struct mapface_s
 {
@@ -71,6 +82,17 @@ typedef struct mapdata_s
 	int			numareahints;
 	
 } mapdata_t;
+
+typedef struct leafface_s
+{
+	struct leafface_s	*areanext;
+	struct leafface_s	*nodenext;
+			
+	struct bspnode_s	*leaf;
+	struct area_s		*area;
+	polygon_t	*polygon;
+
+} leafface_t;
 
 typedef struct portal_s
 {
@@ -98,7 +120,6 @@ typedef struct area_s
 	int			numportals;
 
 	// area render surfaces
-	struct trisurf_s	*trisurf;
 	struct leafface_s	*leaffaces;
 	struct trilist_s	*trilist;
 
@@ -240,19 +261,4 @@ void BuildAreas(bsptree_t *tree);
 // output functions
 void WriteBinary(bsptree_t *tree);
 
-// mesh
-typedef struct meshvertex_s
-{
-	vec3	xyz;
-	vec3	normal;
-
-} meshvertex_t;
-
-void BeginMesh();
-void EndMesh();
-void InsertTri(meshvertex_t v0, meshvertex_t v1, meshvertex_t v2);
-int NumVertices();
-int NumIndicies();
-meshvertex_t GetVertex(int i);
-int GetIndex(int i);
 

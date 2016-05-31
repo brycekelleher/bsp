@@ -209,6 +209,7 @@ void DebugEndLeafPolygons()
 	leafnum++;
 }
 
+#if 0
 void DebugDumpAreaSurfaces(bsptree_t *tree)
 {
 	FILE *fp = FileOpenTextWrite("debug_surfaces.gld");
@@ -239,5 +240,4 @@ void DebugDumpAreaSurfaces(bsptree_t *tree)
 
 	FileClose(fp);
 }
-
-
+#endif
