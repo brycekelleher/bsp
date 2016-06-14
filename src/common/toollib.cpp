@@ -94,7 +94,7 @@ void FileClose(FILE *fp)
 void WriteFile(const char *filename, void *data, int numbytes)
 {
 	FILE *fp = fopen(filename, "wb");
-	if(fp)
+	if(!fp)
 		Error("Failed to open file \"%s\"\n", filename);
 
 	fwrite(data, numbytes, 1, fp);
