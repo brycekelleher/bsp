@@ -405,3 +405,136 @@ trilist_t *CalculateNormals(trilist_t *trilist)
 	return trilist;
 }
 
+//________________________________________________________________________________
+// Triangle Clipping
+// consumes a triangle and a plane and produces a two lists of triangles for the front and back planes
+
+// Clip the triangle with a plane generating a new polygon.
+// Triangulate the polygon and create new triangles
+
+void ClipTriangleWithPlane(areatri_t *t, plane_t plane, float epsilon, trilist_t **f,trilist_t **b)
+{
+	int sides[4];
+	int counts[3];
+	int i, j;
+
+	counts[0] = counts[1] = counts[2] = 0;
+
+	// compute the sides
+	for (int i = 0; i < 3; i++)
+	{
+		sides[i] = PointOnPlaneSide(plane, t->vertices[i], epsilon);
+		counts[sides[i]]++;
+	}
+
+	// triangle sits on the plane
+	if (!counts[PLANE_SIDE_FRONT] && !counts[PLANE_SIDE_BACK])
+	{
+		*f = NULL;
+		*b = NULL;
+		return;	
+	}
+
+	// triangle in front of plane
+	if (!counts[PLANE_SIDE_BACK])
+	{
+		*f = CreateTriList();
+		Append(*f, Copy(t));
+		return;	
+	}
+
+	// triangle on back of plane
+	if (!counts[PLANE_SIDE_FRONT])
+	{
+		*b = CreateTriList();
+		Append(*b, Copy(t));
+		return;	
+	}
+
+	// triangle crosses the plane
+	// The split triangle
+	// 0 is front, 1 is back
+	vec3 vertices[2][4];
+	int numvertices[2];
+	
+	numvertices[0] = numvertices[1] = 0;
+
+	for (i = 0; i < 3; i++)
+	{
+		vec3	p1, p2, mid;
+
+		p1 = t->vertices[i];
+		p2 = t->vertices[(i + 1) % 3];
+		
+		if (sides[i] == PLANE_SIDE_ON)
+		{
+			// add the point to the front polygon
+			vertices[0][numvertices[0]] = p1;
+			numvertices[0]++;
+
+			// Add the point to the back polygon
+			vertices[1][numvertices[1]] = p1;
+			numvertices[1]++;
+			
+			continue;
+		}
+	
+		if (sides[i] == PLANE_SIDE_FRONT)
+		{
+			// add the point to the front polygon
+			vertices[0][numvertices[0]] = p1;
+			numvertices[0]++;
+		}
+
+		if (sides[i] == PLANE_SIDE_BACK)
+		{
+			vertices[1][numvertices[1]] = p1;
+			numvertices[1]++;
+		}
+
+		// if the next point doesn't straddle the plane continue
+		if (sides[i + 1] == PLANE_SIDE_ON || sides[i] == sides[i + 1])
+		{
+			continue;
+		}
+		
+		// The next point crosses the plane, so generate a split point
+		for (j = 0; j < 3; j++)
+		{
+			// avoid round off error when possible
+			if (plane[j] == 1)
+			{
+				mid[j] = -plane[3];
+			}
+			else if (plane[j] == -1)
+			{
+				mid[j] = plane[3];
+			}
+			else
+			{
+				float dist1, dist2, dot;
+				
+				dist1 = Distance(plane, p1);
+				dist2 = Distance(plane, p2);
+				dot = dist1 / (dist1 - dist2);
+				mid[j] = ((1.0f - dot) * p1[j]) + (dot * p2[j]);
+			}
+		}
+			
+		vertices[0][numvertices[0]] = mid;
+		numvertices[0]++;
+		vertices[1][numvertices[1]] = mid;
+		numvertices[1]++;
+	}
+
+	// build the front triangle list
+	for (i = 0; i < numvertices[0]; i++)
+	{}
+
+	// build the back triangle list
+	for (i = 0; i < numvertices[1]; i++)
+	{}
+}
+
+
+
